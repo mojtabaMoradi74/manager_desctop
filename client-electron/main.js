@@ -43,6 +43,7 @@ function discoverServer() {
 	mdns.on("response", (response) => {
 		response.answers.forEach((answer) => {
 			if (answer.type === "A" && answer.name === MDNS_SERVICE_NAME) {
+				console.error("❌ clearTimeout retries!");
 				clearTimeout(discoveryTimeout);
 				SERVER_IP = answer.data;
 				console.log(`✅ Server found at: ${SERVER_IP}`);
