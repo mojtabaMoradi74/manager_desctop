@@ -22,6 +22,7 @@ module.exports = {
 		asar: true,
 		overwrite: true,
 		prune: true,
+		author: "Mojtaba Moradi",
 		icon: path.resolve(__dirname, "assets", "icon"),
 		// osxSign: {
 		//   identity: "Developer ID Application: Your Name (TEAMID)", // جایگزین کنید با اطلاعات خود
