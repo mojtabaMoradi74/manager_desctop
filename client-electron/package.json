@@ -4,10 +4,26 @@
 	"description": "Electron Client App with Socket.IO",
 	"main": "main.js",
 	"scripts": {
-		"start": "electron ."
+		"start": "electron .",
+		"build-server": "electron-builder --win --x64 --config.serverBuild=true",
+		"build-client": "electron-builder --win --x64 --config.serverBuild=false"
+	},
+	"build": {
+		"appId": "com.example.lanchat",
+		"win": {
+			"target": "nsis",
+			"icon": "assets/icon.ico"
+		},
+		"extraResources": [
+			{
+				"from": "database",
+				"to": "database"
+			}
+		]
 	},
 	"dependencies": {
 		"electron": "^26.2.3",
+		"multicast-dns": "^7.2.5",
 		"os": "^0.1.2",
 		"socket.io-client": "^4.7.2"
 	}

@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "electron": "^35.1.2",
+    "fs-extra": "^11.3.0",
+    "multicast-dns": "^7.2.5",
+    "net": "^1.0.2",
+    "net-ping": "^1.2.4",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "udp-discovery": "^2.0.2"
+  }
+}

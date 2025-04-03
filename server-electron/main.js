@@ -2,46 +2,77 @@ const { app, BrowserWindow, ipcMain } = require("electron");
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-const path = require("path");
-const Database = require("./database");
+const mdns = require("multicast-dns")();
 const os = require("os");
+const Database = require("./database");
 
+// Config
+const SERVER_PORT = 4000;
+const MDNS_SERVICE_NAME = "myapp.local";
+let SERVER_IP = getLocalIp(); // LAN IP
 let mainWindow;
-const expressApp = express();
-const server = http.createServer(expressApp);
-const io = new Server(server, {
-	cors: {
-		origin: "*",
-		methods: ["GET", "POST"],
-	},
-});
 
-function getServerHostname() {
-	return os.hostname(); // be hostname server dastresi peyda mikonad
-}
-
+// --- Helper Functions ---
 function getLocalIp() {
 	const interfaces = os.networkInterfaces();
-	for (const interfaceName in interfaces) {
-		for (const iface of interfaces[interfaceName]) {
-			if (iface.family === "IPv4" && !iface.internal) {
-				return iface.address;
-			}
+	for (const iface of Object.values(interfaces).flat()) {
+		if (iface.family === "IPv4" && !iface.internal) {
+			return iface.address;
 		}
 	}
-	return "127.0.0.1"; // Agar IP peyda nashod
+	throw new Error("No valid LAN IP found!");
 }
-let SERVER_IP = getLocalIp(); // IP LAN
-const SERVER_PORT = 4000;
-console.log({ getServerHostname: getServerHostname() });
-const serverHostname = getServerHostname();
-SERVER_IP = serverHostname;
-console.log({ SERVER_IP });
 
-// Setup database
+// --- mDNS Setup (Service Discovery) ---
+mdns.on("query", (query) => {
+	query.questions.forEach((q) => {
+		if (q.name === MDNS_SERVICE_NAME) {
+			console.log(`📶 mDNS Query: Responding with IP ${SERVER_IP}`);
+			mdns.respond({
+				answers: [
+					{
+						name: MDNS_SERVICE_NAME,
+						type: "A",
+						ttl: 300,
+						data: SERVER_IP,
+					},
+				],
+			});
+		}
+	});
+});
+
+// --- Express & Socket.io Setup ---
+const expressApp = express();
+const httpServer = http.createServer(expressApp);
+const io = new Server(httpServer, {
+	cors: { origin: "*", methods: ["GET", "POST"] },
+});
+
+// --- Database Setup ---
 const db = new Database();
 
-// Electron Window
+// --- Socket.io Events ---
+io.on("connection", (socket) => {
+	console.log(`🔌 Client Connected: ${socket.id}`);
+
+	// Load previous messages
+	db.getMessages().then((messages) => {
+		socket.emit("load_messages", messages);
+	});
+
+	// Handle new messages
+	socket.on("new_message", async (data) => {
+		await db.saveMessage(data);
+		io.emit("receive_message", data); // Broadcast
+	});
+
+	socket.on("disconnect", () => {
+		console.log(`❌ Client Disconnected: ${socket.id}`);
+	});
+});
+
+// --- Electron Window ---
 app.whenReady().then(() => {
 	mainWindow = new BrowserWindow({
 		width: 800,
@@ -53,37 +84,14 @@ app.whenReady().then(() => {
 		},
 	});
 
-	// Load `index.html` az build shode Vite
 	mainWindow.loadURL(`file://${__dirname}/renderer/dist/index.html`);
-	mainWindow.webContents.openDevTools(); // Debug Kon	// mainWindow.loadURL("http://localhost:5173"); // **React App ro Load Kon**
-});
-// app.applicationSupportsSecureRestorableState = () => true;
-
-// WebSocket Connection
-io.on("connection", (socket) => {
-	console.log("New Client Connected:", socket.id);
-
-	// Send stored messages to new client
-	db.getMessages().then((messages) => {
-		socket.emit("load_messages", messages);
-	});
-
-	// Receive new message from client
-	socket.on("new_message", async (data) => {
-		await db.saveMessage(data);
-		io.emit("receive_message", data); // Broadcast to all clients
-	});
+	if (process.env.NODE_ENV === "development") mainWindow.webContents.openDevTools();
 });
 
-// Express Route (Test)
-expressApp.get("/", (req, res) => {
-	res.send("Server is running...");
-});
-// API baraye ferestad IP server be React
-ipcMain.handle("getServerIp", async () => {
-	return SERVER_IP;
-});
-// Start Server on LAN
-server.listen(SERVER_PORT, () => {
-	console.log(`🚀 Server running on http://${SERVER_IP}:${SERVER_PORT}`);
+// --- API for React (Get Server IP) ---
+ipcMain.handle("getServerIp", () => SERVER_IP);
+
+// --- Start Server ---
+httpServer.listen(SERVER_PORT, () => {
+	console.log(`🚀 Server Running → http://${SERVER_IP}:${SERVER_PORT}`);
 });

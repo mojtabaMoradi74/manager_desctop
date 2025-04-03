@@ -5,12 +5,27 @@
 	"main": "main.js",
 	"scripts": {
 		"start": "electron .",
-		"dev": "nodemon main.js"
+		"build-server": "electron-builder --win --x64 --config.serverBuild=true",
+		"build-client": "electron-builder --win --x64 --config.serverBuild=false"
+	},
+	"build": {
+		"appId": "com.example.lanchat",
+		"win": {
+			"target": "nsis",
+			"icon": "assets/icon.ico"
+		},
+		"extraResources": [
+			{
+				"from": "database",
+				"to": "database"
+			}
+		]
 	},
 	"dependencies": {
 		"electron": "^26.2.3",
 		"express": "^4.18.2",
 		"http": "^0.0.1-security",
+		"multicast-dns": "^7.2.5",
 		"os": "^0.1.2",
 		"socket.io": "^4.7.2",
 		"sqlite3": "^5.1.6"
