@@ -48,14 +48,14 @@ module.exports = {
 			},
 		},
 		// 📦 Windows AppX (Microsoft Store)
-		{
-			name: "@electron-forge/maker-appx",
-			config: {
-				publisher: "CN=developmentca",
-				devCert: path.resolve(__dirname, "certs", "devcert.crt"), // چک کن که وجود داره!
-				certPass: "1234",
-			},
-		},
+		// {
+		// 	name: "@electron-forge/maker-appx",
+		// 	config: {
+		// 		publisher: "CN=developmentca",
+		// 		devCert: path.resolve(__dirname, "certs", "devcert.crt"), // چک کن که وجود داره!
+		// 		certPass: "1234",
+		// 	},
+		// },
 		// 🍏 macOS (dmg)
 		{
 			name: "@electron-forge/maker-dmg",
