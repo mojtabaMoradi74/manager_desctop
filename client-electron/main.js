@@ -56,7 +56,7 @@ function discoverServer() {
 
 // --- Socket.io Connection ---
 function connectToServer() {
-	if (isConnected || isConnecting) return; // 🔴 اگر قبلاً متصل شده، کاری نکند
+	if (isConnected) return; // 🔴 اگر قبلاً متصل شده، کاری نکند
 	isConnecting = true;
 
 	if (socket) socket.disconnect(); // Clear old connection

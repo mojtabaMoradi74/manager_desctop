@@ -11,6 +11,7 @@ const SERVER_PORT = 4000;
 const MDNS_SERVICE_NAME = "myapp.local";
 let SERVER_IP = getLocalIp(); // LAN IP
 let mainWindow;
+let server, io;
 
 // --- Helper Functions ---
 function getLocalIp() {
@@ -45,32 +46,66 @@ mdns.on("query", (query) => {
 // --- Express & Socket.io Setup ---
 const expressApp = express();
 const httpServer = http.createServer(expressApp);
-const io = new Server(httpServer, {
-	cors: { origin: "*", methods: ["GET", "POST"] },
-});
+// io = new Server(httpServer, {
+// 	cors: { origin: "*", methods: ["GET", "POST"] },
+// });
 
 // --- Database Setup ---
 const db = new Database();
 
 // --- Socket.io Events ---
-io.on("connection", (socket) => {
-	console.log(`🔌 Client Connected: ${socket.id}`);
+// io.on("connection", (socket) => {
+// 	console.log(`🔌 Client Connected: ${socket.id}`);
 
-	// Load previous messages
-	db.getMessages().then((messages) => {
-		socket.emit("load_messages", messages);
+// 	// Load previous messages
+// 	db.getMessages().then((messages) => {
+// 		socket.emit("load_messages", messages);
+// 	});
+
+// 	// Handle new messages
+// 	socket.on("new_message", async (data) => {
+// 		await db.saveMessage(data);
+// 		io.emit("receive_message", data); // Broadcast
+// 	});
+
+// 	socket.on("disconnect", () => {
+// 		console.log(`❌ Client Disconnected: ${socket.id}`);
+// 	});
+// });
+
+// --- Start Express & Socket.io ---
+function startServer() {
+	const expressApp = express();
+	server = http.createServer(expressApp);
+	io = new Server(server, {
+		cors: { origin: "*", methods: ["GET", "POST"] },
 	});
 
-	// Handle new messages
-	socket.on("new_message", async (data) => {
-		await db.saveMessage(data);
-		io.emit("receive_message", data); // Broadcast
+	// --- Socket.io Events ---
+	io.on("connection", (socket) => {
+		console.log(`🔌 Client Connected: ${socket.id}`);
+
+		// Load previous messages
+		db.getMessages().then((messages) => {
+			socket.emit("load_messages", messages);
+		});
+
+		// Handle new messages
+		socket.on("new_message", async (data) => {
+			await db.saveMessage(data);
+			io.emit("receive_message", data); // Broadcast
+		});
+
+		socket.on("disconnect", () => {
+			console.log(`❌ Client Disconnected: ${socket.id}`);
+		});
 	});
 
-	socket.on("disconnect", () => {
-		console.log(`❌ Client Disconnected: ${socket.id}`);
+	// Start server
+	server.listen(SERVER_PORT, () => {
+		console.log(`🚀 Server Running → http://${SERVER_IP}:${SERVER_PORT}`);
 	});
-});
+}
 
 // --- Electron Window ---
 app.whenReady().then(() => {
@@ -87,12 +122,13 @@ app.whenReady().then(() => {
 	mainWindow.loadURL(`file://${__dirname}/renderer/dist/index.html`);
 	// if (process.env.NODE_ENV === "development")
 	mainWindow.webContents.openDevTools();
+	startServer(); // ✅ استارت سرور داخل خود Electron
 });
 
 // --- API for React (Get Server IP) ---
 ipcMain.handle("getServerIp", () => SERVER_IP);
 
-// --- Start Server ---
-httpServer.listen(SERVER_PORT, () => {
-	console.log(`🚀 Server Running → http://${SERVER_IP}:${SERVER_PORT}`);
-});
+// // --- Start Server ---
+// httpServer.listen(SERVER_PORT, () => {
+// 	console.log(`🚀 Server Running → http://${SERVER_IP}:${SERVER_PORT}`);
+// });
