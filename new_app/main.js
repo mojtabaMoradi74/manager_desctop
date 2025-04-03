@@ -17,12 +17,89 @@ const CONFIG = {
 	RETRY_DELAY: 2000,
 	ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || "default-dev-key", // در تولید باید تغییر کند
 };
+const SERVICE_CONFIG = {
+	name: "my-chat-server",
+	type: "tcp",
+	port: 4000,
+	protocol: "tcp",
+	txt: {
+		version: "1.0",
+		auth: "simple-auth",
+	},
+};
 
 let mainWindow;
 let server = null;
 let ioServer = null;
 let isServer = false;
 let serverIp = null;
+
+// تابع برای دریافت IP محلی
+function getLocalIp() {
+	const interfaces = os.networkInterfaces();
+	for (const iface of Object.values(interfaces).flat()) {
+		if (iface.family === "IPv4" && !iface.internal && iface.address !== "127.0.0.1") {
+			return iface.address;
+		}
+	}
+	return "127.0.0.1";
+}
+
+// انتشار سرویس با mDNS
+function advertiseService() {
+	const ip = getLocalIp();
+
+	mdns.on("query", (query) => {
+		query.questions.forEach((q) => {
+			if (q.name === `${SERVICE_CONFIG.name}.${SERVICE_CONFIG.type}.local`) {
+				console.log("Responding to mDNS query");
+				mdns.respond({
+					answers: [
+						{
+							name: `${SERVICE_CONFIG.name}.${SERVICE_CONFIG.type}.local`,
+							type: "SRV",
+							data: {
+								port: SERVICE_CONFIG.port,
+								weight: 0,
+								priority: 10,
+								target: os.hostname() + ".local",
+							},
+						},
+						{
+							name: `${SERVICE_CONFIG.name}.${SERVICE_CONFIG.type}.local`,
+							type: "TXT",
+							data: SERVICE_CONFIG.txt,
+						},
+					],
+					additionals: [
+						{
+							name: os.hostname() + ".local",
+							type: "A",
+							ttl: 300,
+							data: ip,
+						},
+					],
+				});
+			}
+		});
+	});
+
+	// انتشار دوره‌ای سرویس
+	setInterval(() => {
+		mdns.query({
+			questions: [
+				{
+					name: `${SERVICE_CONFIG.name}.${SERVICE_CONFIG.type}.local`,
+					type: "PTR",
+				},
+			],
+		});
+	}, 60000);
+}
+
+// شروع سرور
+advertiseService();
+console.log("Server advertising via mDNS...");
 
 // --- Helper Functions ---
 function getNetworkInfo() {
