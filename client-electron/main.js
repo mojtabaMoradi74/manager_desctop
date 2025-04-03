@@ -98,7 +98,8 @@ app.whenReady().then(() => {
 	});
 
 	mainWindow.loadURL(`file://${__dirname}/renderer/dist/index.html`);
-	if (process.env.NODE_ENV === "development") mainWindow.webContents.openDevTools();
+	// if (process.env.NODE_ENV === "development")
+	mainWindow.webContents.openDevTools();
 
 	// Start discovery
 	discoverServer();
