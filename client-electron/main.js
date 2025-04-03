@@ -18,7 +18,7 @@ let isConnecting = false;
 
 // --- Server Discovery (mDNS) ---
 function discoverServer() {
-	if (isDiscovering || SERVER_IP || isConnected || isConnecting) return; // 🔴 از اتصال مجدد جلوگیری می‌کند
+	if (isDiscovering || SERVER_IP || isConnected) return console.log("🔴 Discovering server return..."); // 🔴 از اتصال مجدد جلوگیری می‌کند
 
 	isDiscovering = true;
 	console.log("🔍 Discovering server...");
