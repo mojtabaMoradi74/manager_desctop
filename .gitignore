@@ -1,5 +1,6 @@
 server-electron/node_modules
 client-electron/node_modules
+new_app/node_modules
 node_modules
 package-lock.json
 server-electron/out

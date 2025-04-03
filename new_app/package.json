@@ -34,6 +34,8 @@
 		"http": "^0.0.1-security",
 		"multicast-dns": "^7.2.5",
 		"os": "^0.1.2",
+		"pg": "^8.14.1",
+		"sequelize": "^6.37.7",
 		"socket.io": "^4.7.2",
 		"sqlite3": "^5.1.6",
 		"update-electron-app": "^3.1.1"

@@ -1,63 +1,156 @@
-import { useEffect, useState } from "react";
-import io from "socket.io-client";
+import { useEffect, useState, useCallback } from "react";
+import { io } from "socket.io-client";
 
-function App() {
-	const [serverIp, setServerIp] = useState(null);
-	const [status, setStatus] = useState("Disconnected");
+const App = () => {
+	const [connection, setConnection] = useState({
+		status: "disconnected",
+		mode: null,
+		server: null,
+		error: null,
+	});
+	const [messages, setMessages] = useState([]);
+	const [input, setInput] = useState("");
 	const [socket, setSocket] = useState(null);
-	const [message, setMessage] = useState("");
 
+	// مدیریت وضعیت شبکه
 	useEffect(() => {
-		console.log({ api: window.api });
+		const handleNetworkStatus = (event, status) => {
+			setConnection((prev) => ({
+				...prev,
+				...status,
+				status: status.status || "connected",
+			}));
 
-		// Peyda kardan IP server az Electron (window.api.getServerIp)
-		if (window.api)
-			window.api.getServerIp().then((ip) => {
-				console.log({ api: ip });
+			// اگر کلاینت هستیم و آدرس سرور را داریم، ارتباط را برقرار می‌کنیم
+			if (status.mode === "client" && status.ip && status.port) {
+				initializeSocketConnection(status.ip, status.port);
+			}
+		};
 
-				setServerIp(ip);
-				const newSocket = io(`http://${ip}:4000`);
-				setSocket(newSocket);
-
-				newSocket.on("connect", () => {
-					setStatus("Connected");
-				});
-
-				newSocket.on("disconnect", () => {
-					setStatus("Disconnected");
-				});
-				newSocket.on("receive_message", (data) => {
-					console.log("Received message: ", data);
-					const messages = document.getElementById("messages");
-					const item = document.createElement("li");
-					item.textContent = `${data.timestamp} - ${data.text}`;
-					messages.appendChild(item);
-				});
-			});
+		window.electronAPI?.networkStatus(handleNetworkStatus);
 
 		return () => {
-			if (socket) socket.disconnect();
+			window.electronAPI?.networkStatus?.removeListener(handleNetworkStatus);
 		};
 	}, []);
 
-	const sendMessage = () => {
-		if (message.trim() === "") return;
-		socket.emit("new_message", { text: message, timestamp: new Date().toLocaleString() });
-		setMessage("");
-	};
+	// ایجاد ارتباط Socket.io
+	const initializeSocketConnection = useCallback((ip, port) => {
+		const socketUrl = `http://${ip}:${port}`;
+		const newSocket = io(socketUrl, {
+			auth: {
+				token: "default-dev-key", // در تولید باید از سیستم احراز هویت استفاده شود
+			},
+			reconnectionAttempts: 5,
+			reconnectionDelay: 1000,
+			timeout: 5000,
+			transports: ["websocket", "polling"],
+			upgrade: false,
+			forceNew: true,
+		});
+
+		newSocket.on("connect", () => {
+			setConnection((prev) => ({
+				...prev,
+				status: "connected",
+				server: { ip, port },
+			}));
+		});
+
+		newSocket.on("server-info", (info) => {
+			console.log("Server information:", info);
+		});
+
+		newSocket.on("message", (message) => {
+			setMessages((prev) => [...prev, message]);
+		});
+
+		newSocket.on("disconnect", (reason) => {
+			setConnection((prev) => ({
+				...prev,
+				status: "disconnected",
+				error: `Disconnected: ${reason}`,
+			}));
+		});
+
+		newSocket.on("connect_error", (err) => {
+			setConnection((prev) => ({
+				...prev,
+				status: "error",
+				error: `Connection failed: ${err.message}`,
+			}));
+		});
+
+		setSocket(newSocket);
+
+		return () => {
+			newSocket.disconnect();
+		};
+	}, []);
+
+	// ارسال پیام
+	const sendMessage = useCallback(() => {
+		if (!input.trim() || !socket) return;
+
+		const message = {
+			content: input,
+			timestamp: new Date().toISOString(),
+			sender: connection.mode === "server" ? "SERVER" : "CLIENT",
+		};
+
+		if (connection.mode === "server") {
+			// در حالت سرور، پیام را به تمام کلاینت‌ها broadcast می‌کنیم
+			socket.emit("broadcast", message);
+		} else {
+			// در حالت کلاینت، پیام را به سرور ارسال می‌کنیم
+			socket.emit("message", message);
+		}
+
+		setInput("");
+	}, [input, socket, connection.mode]);
 
 	return (
-		<div>
-			<h1>Client App</h1>
-			<p>Server IP: {serverIp || "Detecting..."}</p>
-			<p>Status: {status}</p>
-			<div>
-				<ul id="messages"></ul> {/* Show received messages */}
-				<input type="text" placeholder="Type a message..." value={message} onChange={(e) => setMessage(e.target.value)} />
-				<button onClick={sendMessage}>Send</button>
+		<div className="app-container">
+			<header className="app-header">
+				<h1>{connection.mode === "server" ? "SERVER" : "CLIENT"} MODE</h1>
+				<div className="connection-status">
+					Status: <span className={connection.status}>{connection.status.toUpperCase()}</span>
+					{connection.server && (
+						<span>
+							{" "}
+							| Server: {connection.server.ip}:{connection.server.port}
+						</span>
+					)}
+				</div>
+			</header>
+
+			<div className="message-container">
+				{messages.map((msg, index) => (
+					<div key={index} className={`message ${msg.sender}`}>
+						<span className="sender">{msg.sender}:</span>
+						<span className="content">{msg.content}</span>
+						<span className="timestamp">{new Date(msg.timestamp).toLocaleTimeString()}</span>
+					</div>
+				))}
 			</div>
+
+			<div className="input-container">
+				<input
+					type="text"
+					value={input}
+					onChange={(e) => setInput(e.target.value)}
+					onKeyPress={(e) => e.key === "Enter" && sendMessage()}
+					disabled={connection.status !== "connected"}
+					placeholder={connection.status === "connected" ? "Type your message..." : "Waiting for connection..."}
+				/>
+				<button onClick={sendMessage} disabled={connection.status !== "connected" || !input.trim()}>
+					Send
+				</button>
+			</div>
+
+			{connection.error && <div className="error-message">Error: {connection.error}</div>}
 		</div>
 	);
-}
+};
 
 export default App;
