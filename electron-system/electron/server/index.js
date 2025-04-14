@@ -6,6 +6,7 @@ const log = require("electron-log");
 const { default: Store } = require("electron-store");
 // require("../src/backend/server");
 const { spawn } = require("child_process");
+const { detectSystemArchitecture } = require("../lib/platformTools");
 const isDev = true; //process.env.NODE_ENV === "development";
 
 let serverProcess;
@@ -26,6 +27,7 @@ serverProcess.on("close", (code) => {
 const isMac = process.platform === "darwin";
 const isWin = process.platform === "win32";
 const isLinux = process.platform === "linux";
+const arch = detectSystemArchitecture();
 const appName = app.getName();
 const appVersion = app.getVersion();
 const appId = app.getAppPath().split(path.sep).pop();
@@ -107,19 +109,25 @@ mdns.on("query", (query) => {
 						name: q.name,
 						type: "TXT",
 						ttl: 300,
-						data: [
-							`ip=${SERVER_IP}`,
-							`id=${appConfig.id}`,
-							`name=${appConfig.name}`,
-							`version=${appConfig.version}`,
-							`type=${appConfig.type}`,
-							`platform=${appConfig.platform}`,
-							`architecture=${appConfig.architecture}`,
-							`hostname=${appConfig.hostname}`,
-							`appName=${appConfig.appName}`,
-							`appVersion=${appConfig.appVersion}`,
-							`appId=${appConfig.appId}`,
-						],
+						data: JSON.stringify({
+							ip: SERVER_IP,
+							id: appConfig.id,
+							type: appConfig.type,
+							isMac,
+							isWin,
+							isLinux,
+							appName,
+							appVersion,
+							appId,
+							appPath,
+							appDataPath,
+							appDataDir,
+							appDataDirPath,
+							appDataDirPath2,
+							appDataDirPath3,
+							deviceName,
+							arch,
+						}),
 					},
 				],
 			});

@@ -1,6 +1,7 @@
 const sudo = require("sudo-prompt");
 const { promisify } = require("util");
 const os = require("os");
+const { detectSystemArchitecture } = require("../../lib/platformTools");
 
 // کلاس خطای سفارشی برای مدیریت بهتر خطاها
 class InstallationError extends Error {
@@ -10,43 +11,6 @@ class InstallationError extends Error {
 		this.isRecoverable = isRecoverable;
 		this.name = "InstallationError";
 	}
-}
-
-async function getRealWindowsArch() {
-	const { exec } = require("child_process");
-	const execPromise = promisify(exec);
-	try {
-		// از PowerShell برای دریافت معماری واقعی استفاده می‌کنیم
-		const { stdout } = await execPromise('powershell.exe -Command "(Get-WmiObject Win32_OperatingSystem).OSArchitecture"');
-		const arch = stdout.trim().toLowerCase();
-
-		// اگر ۶۴ بیتی باشه
-		if (arch.includes("64")) return "x64";
-		// اگر ۳۲ بیتی باشه
-		if (arch.includes("32")) return "x86";
-		return "unknown"; // در صورت عدم تطابق
-	} catch (error) {
-		console.error("Error checking Windows architecture:", error);
-		return "unknown";
-	}
-}
-
-// تابع تشخیص معماری سیستم
-async function detectArchitecture() {
-	const arch = process.arch;
-	const platform = process.platform;
-
-	// تشخیص دقیق‌تر برای مک‌های M1/M2
-	if (platform === "darwin" && os.cpus()[0].model.includes("Apple")) {
-		return "arm64";
-	}
-	// if (platform === "win32") {
-	// 	// بررسی معماری واقعی ویندوز
-	// 	const realArch = await getRealWindowsArch();
-	// 	arch = realArch === "x64" ? "x64" : "x86";
-	// }
-
-	return arch;
 }
 
 // تابع تشخیص نسخه ویندوز
@@ -115,7 +79,7 @@ async function runCommand(command, platform, useSudo = false) {
 
 // تابع نصب Homebrew با پشتیبانی از ARM64 و Intel
 async function ensureBrewInstalled() {
-	const arch = detectArchitecture();
+	const arch = detectSystemArchitecture();
 	const brewPath = arch === "arm64" ? "/opt/homebrew/bin/brew" : "/usr/local/bin/brew";
 	const shellConfig = arch === "arm64" ? "~/.zshrc" : "~/.bash_profile";
 
@@ -197,7 +161,7 @@ async function installLinuxDependencies() {
 async function installPostgreSQL() {
 	try {
 		const platform = process.platform;
-		const arch = detectArchitecture();
+		const arch = detectSystemArchitecture();
 		let osVersion = "unknown";
 
 		console.log(`Detected platform: ${platform}, architecture: ${arch}`);
@@ -335,7 +299,7 @@ async function installPostgreSQL() {
 				error: error.message,
 				errorType: error.type,
 				platform: process.platform,
-				architecture: detectArchitecture(),
+				architecture: detectSystemArchitecture(),
 				isRecoverable: error.isRecoverable,
 				suggestion: getSuggestionForError(error.message),
 			})
