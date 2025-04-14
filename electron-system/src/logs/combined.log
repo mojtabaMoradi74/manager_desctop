@@ -11,3 +11,17 @@
 {"level":"info","message":"اتصال به دیتابیس با موفقیت برقرار شد","timestamp":"2025-04-14 18:05:27"}
 {"level":"info","message":"مدل‌های دیتابیس همگام‌سازی شدند","timestamp":"2025-04-14 18:05:27"}
 {"level":"info","message":"سرور در حال اجرا روی پورت 5000","timestamp":"2025-04-14 18:05:27"}
+{"level":"info","message":"اتصال به دیتابیس با موفقیت برقرار شد","timestamp":"2025-04-14 18:14:13"}
+{"level":"info","message":"مدل‌های دیتابیس همگام‌سازی شدند","timestamp":"2025-04-14 18:14:13"}
+{"level":"info","message":"سرور در حال اجرا روی پورت 5000","timestamp":"2025-04-14 18:14:13"}
+{"level":"info","message":"اتصال به دیتابیس با موفقیت برقرار شد","timestamp":"2025-04-14 18:15:34"}
+{"level":"info","message":"مدل‌های دیتابیس همگام‌سازی شدند","timestamp":"2025-04-14 18:15:34"}
+{"level":"info","message":"سرور در حال اجرا روی پورت 5000","timestamp":"2025-04-14 18:15:34"}
+{"level":"error","message":"خطا در بستن اتصال دیتابیس: sequelize is not defined","stack":"ReferenceError: sequelize is not defined\n    at process.<anonymous> (/Users/mojtabamoradi/Documents/projects/mojtaba/manager_desctop/electron-system/src/backend/server.js:110:5)\n    at process.emit (node:events:518:28)","timestamp":"2025-04-14 18:16:32"}
+{"level":"info","message":"اتصال به دیتابیس با موفقیت برقرار شد","timestamp":"2025-04-14 18:16:36"}
+{"level":"info","message":"مدل‌های دیتابیس همگام‌سازی شدند","timestamp":"2025-04-14 18:16:36"}
+{"level":"info","message":"سرور در حال اجرا روی پورت 5000","timestamp":"2025-04-14 18:16:36"}
+{"level":"error","message":"خطا در بستن اتصال دیتابیس: sequelize is not defined","stack":"ReferenceError: sequelize is not defined\n    at process.<anonymous> (/Users/mojtabamoradi/Documents/projects/mojtaba/manager_desctop/electron-system/src/backend/server.js:110:5)\n    at process.emit (node:events:518:28)","timestamp":"2025-04-14 18:16:51"}
+{"level":"info","message":"اتصال به دیتابیس با موفقیت برقرار شد","timestamp":"2025-04-14 18:16:53"}
+{"level":"info","message":"مدل‌های دیتابیس همگام‌سازی شدند","timestamp":"2025-04-14 18:16:53"}
+{"level":"info","message":"سرور در حال اجرا روی پورت 5000","timestamp":"2025-04-14 18:16:53"}
