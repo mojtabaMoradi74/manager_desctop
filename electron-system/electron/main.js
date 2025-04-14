@@ -71,11 +71,11 @@ ipcMain.handle("discoverServers", async () => {
 			// const a = response.answers.find((ans) => ans.type === "A" && ans.name.includes("system-server"));
 			// const txt = response.answers.find((ans) => ans.type === "TXT");
 			// console.log("Server Info:", ...(serverInfo.data ? JSON.parse(serverInfo.data) : {}));
-			console.log("Server Info:", serverInfo);
-			console.log("Server Info data:", serverInfo.data);
-			console.log("Server Info 2:", JSON.parse(serverInfo.data));
 
-			if (serverInfo?.data) {
+			if (serverInfo) {
+				console.log("Server Info:", serverInfo);
+				console.log("Server Info data:", serverInfo.data);
+				console.log("Server Info 2:", JSON.parse(serverInfo.data));
 				servers.push(serverInfo.data);
 			}
 		});
