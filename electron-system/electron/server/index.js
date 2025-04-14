@@ -89,6 +89,8 @@ function getLocalIp() {
 
 // --- mDNS Setup (Service Discovery) ---
 mdns.on("query", (query) => {
+	console.log("🔍 mDNS Query:", query);
+
 	query.questions.forEach((q) => {
 		if (q.name === MDNS_SERVICE_NAME) {
 			console.log(`📶 mDNS Query: Responding with IP ${SERVER_IP}`);
