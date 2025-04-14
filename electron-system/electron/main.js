@@ -117,10 +117,10 @@ function createWindow(route = "/") {
 
 app.whenReady().then(() => {
 	const config = store.get("appConfig");
-	if (config.type === "client") {
-		require("./client");
+	if (config?.type === "client") {
+		require("./clinet");
 		createWindow("/");
-	} else if (config.type === "server") {
+	} else if (config?.type === "server") {
 		require("./server");
 		createWindow("/");
 	} else {
