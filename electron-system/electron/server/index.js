@@ -90,41 +90,36 @@ function getLocalIp() {
 // --- mDNS Setup (Service Discovery) ---
 mdns.on("query", (query) => {
 	console.log("🔍 mDNS Query:", query);
-	console.log(
-		"🔍 mDNS check:",
-		query.questions.map((q) => q.type === "A" && q.name.includes("system-server"))
-	);
 
 	query.questions.forEach((q) => {
 		if (q.name === MDNS_SERVICE_NAME || q.name.includes("system-server")) {
 			console.log(`📶 mDNS Query: Responding with IP ${SERVER_IP}`);
-			logToFile(`📶 mDNS Query: Responding with IP ${SERVER_IP}`);
 
 			mdns.respond({
 				answers: [
-					{
-						name: q.name,
-						type: "A",
-						ttl: 300,
-						data: SERVER_IP,
-					},
+					// {
+					// 	name: q.name,
+					// 	type: "A",
+					// 	ttl: 300,
+					// 	data: SERVER_IP,
+					// },
 					{
 						name: q.name,
 						type: "TXT",
 						ttl: 300,
-						data: JSON.stringify({
-							ip: SERVER_IP,
-							id: appConfig.id,
-							name: appConfig.name,
-							version: appConfig.version,
-							type: appConfig.type,
-							platform: appConfig.platform,
-							architecture: appConfig.architecture,
-							hostname: appConfig.hostname,
-							appName: appConfig.appName,
-							appVersion: appConfig.appVersion,
-							appId: appConfig.appId,
-						}),
+						data: [
+							`ip=${SERVER_IP}`,
+							`id=${appConfig.id}`,
+							`name=${appConfig.name}`,
+							`version=${appConfig.version}`,
+							`type=${appConfig.type}`,
+							`platform=${appConfig.platform}`,
+							`architecture=${appConfig.architecture}`,
+							`hostname=${appConfig.hostname}`,
+							`appName=${appConfig.appName}`,
+							`appVersion=${appConfig.appVersion}`,
+							`appId=${appConfig.appId}`,
+						],
 					},
 				],
 			});
