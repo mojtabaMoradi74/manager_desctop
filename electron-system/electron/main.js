@@ -70,7 +70,7 @@ ipcMain.handle("discoverServers", async () => {
 			questions: [
 				{
 					name: "_system-server._tcp.local",
-					type: "PTR",
+					type: "A",
 				},
 			],
 		});
