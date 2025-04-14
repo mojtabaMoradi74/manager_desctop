@@ -112,7 +112,7 @@ mdns.on("query", (query) => {
 						name: q.name,
 						type: "TXT",
 						ttl: 300,
-						data: {
+						data: JSON.stringify({
 							ip: SERVER_IP,
 							id: appConfig.id,
 							name: appConfig.name,
@@ -124,7 +124,7 @@ mdns.on("query", (query) => {
 							appName: appConfig.appName,
 							appVersion: appConfig.appVersion,
 							appId: appConfig.appId,
-						},
+						}),
 					},
 				],
 			});
