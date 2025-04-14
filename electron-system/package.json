@@ -27,6 +27,7 @@
 		"dotenv": "^16.4.7",
 		"electron-log": "^5.3.3",
 		"electron-store": "^10.0.1",
+		"multicast-dns": "^7.2.5",
 		"nodemon": "^3.1.9",
 		"path": "^0.12.7",
 		"sudo-prompt": "^9.2.1"
