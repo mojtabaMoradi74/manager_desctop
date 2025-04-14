@@ -65,8 +65,9 @@ ipcMain.handle("discoverServers", async () => {
 				console.log("Server Info 2:", JSON.parse(serverInfo.data));
 				const txtArray = serverInfo.data; // array of strings like ["ip=...", "name=..."]
 				const parsed = {};
-				txtArray.forEach((entry) => {
-					const [key, value] = entry.split("=");
+				(txtArray || []).forEach((entry) => {
+					const txt = Buffer.isBuffer(entry) ? entry.toString() : entry;
+					const [key, value] = txt.split("=");
 					parsed[key] = value;
 				});
 				servers.push(parsed);
