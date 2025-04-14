@@ -60,8 +60,8 @@ ipcMain.handle("discoverServers", async () => {
 			const server = response.answers.find((a) => a.type === "A" && a.name.includes("system-server"));
 			if (server) {
 				servers.push({
+					...server,
 					name: server.name.replace(".local", ""),
-					ip: server.data,
 				});
 			}
 		});

@@ -92,12 +92,7 @@ mdns.on("query", (query) => {
 	console.log("🔍 mDNS Query:", query);
 	console.log(
 		"🔍 mDNS check:",
-
-		query.questions.map(
-			(
-				q // q.name
-			) => q.type === "A" && q.name.includes("system-server")
-		)
+		query.questions.map((q) => q.type === "A" && q.name.includes("system-server"))
 	);
 
 	query.questions.forEach((q) => {
@@ -108,7 +103,7 @@ mdns.on("query", (query) => {
 			mdns.respond({
 				answers: [
 					{
-						name: MDNS_SERVICE_NAME,
+						name: q.name,
 						type: "A",
 						ttl: 300,
 						data: {
@@ -128,30 +123,6 @@ mdns.on("query", (query) => {
 				],
 			});
 		}
-		// else if (q.type === "A" && q.name.includes("system-server")) {
-		// 	mdns.respond({
-		// 		answers: [
-		// 			{
-		// 				name: q.name,
-		// 				type: "A",
-		// 				ttl: 300,
-		// 				data: {
-		// 					ip: SERVER_IP,
-		// 					id: appConfig.id,
-		// 					name: appConfig.name,
-		// 					version: appConfig.version,
-		// 					type: appConfig.type,
-		// 					platform: appConfig.platform,
-		// 					architecture: appConfig.architecture,
-		// 					hostname: appConfig.hostname,
-		// 					appName: appConfig.appName,
-		// 					appVersion: appConfig.appVersion,
-		// 					appId: appConfig.appId,
-		// 				},
-		// 			},
-		// 		],
-		// 	});
-		// }
 	});
 });
 
