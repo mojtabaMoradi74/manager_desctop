@@ -63,7 +63,13 @@ ipcMain.handle("discoverServers", async () => {
 				console.log("Server Info:", serverInfo);
 				console.log("Server Info data:", serverInfo.data);
 				console.log("Server Info 2:", JSON.parse(serverInfo.data));
-				servers.push(JSON.parse(serverInfo.data));
+				const txtArray = serverInfo.data; // array of strings like ["ip=...", "name=..."]
+				const parsed = {};
+				txtArray.forEach((entry) => {
+					const [key, value] = entry.split("=");
+					parsed[key] = value;
+				});
+				servers.push(parsed);
 			}
 		});
 
