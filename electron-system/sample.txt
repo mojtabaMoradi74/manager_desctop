@@ -1,0 +1,32 @@
+electron-system/
+├── electron/              # کدهای اصلی الکترون
+│   ├── main.js            # نقطه ورود الکترون
+│   └── preload.js         # پل بین الکترون و ری‌اکت
+├── src/
+│   ├── backend/           # سرور Node.js
+│   │   ├── config/        # تنظیمات دیتابیس
+│   │   ├── controllers/   # کنترلرهای API
+│   │   ├── middleware/    # میدلورهای JWT
+│   │   ├── models/        # مدل‌های Sequelize
+│   │   ├── routes/        # مسیرهای API
+│   │   ├── services/      # سرویس‌های منطق کسب‌وکار
+│   │   ├── sockets/       # مدیریت Socket.io
+│   │   └── server.js      # نقطه ورود سرور
+│   ├── frontend/          # اپلیکیشن ری‌اکت
+│   │   ├── public/
+│   │   ├── src/
+│   │   │   ├── api/       # توابع فراخوانی API
+│   │   │   ├── components/
+│   │   │   │   ├── layout/ # کامپوننت‌های چیدمان
+│   │   │   │   ├── setup/  # کامپوننت‌های مراحل نصب
+│   │   │   │   └── ...     # سایر کامپوننت‌ها
+│   │   │   ├── contexts/  # Context API
+│   │   │   ├── hooks/     # هوک‌های سفارشی
+│   │   │   ├── stores/    # Zustand/Redux
+│   │   │   ├── utils/     # ابزارهای کمکی
+│   │   │   └── App.js     # کامپوننت اصلی
+│   ├── shared/            # کدهای مشترک بین فرانت و بک
+│   └── assets/            # فایل‌های استاتیک
+├── .env                   # متغیرهای محیطی
+├── package.json
+└── README.md

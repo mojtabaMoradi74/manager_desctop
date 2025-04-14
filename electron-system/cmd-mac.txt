@@ -1,0 +1,23 @@
+brew services
+brew services stop postgresql
+brew uninstall postgresql
+✅ ۱. وصل شدن به psql (خط فرمان PostgreSQL):
+psql -U mojtaba -d postgres
+
+
+✅ ۲. لیست تمام دیتابیس‌ها:
+\l
+or 
+SELECT datname FROM pg_database;
+
+✅ ۳. لیست تمام یوزرها (roleها):
+\du
+or
+SELECT usename FROM pg_user;
+✅ ۴. خروج از psql:
+
+اگر PostgreSQL در مسیرت نیست و با psql ارور می‌گیری، اول باید PostgreSQL رو تو مسیر shell اضافه کنی. اگه با brew نصبش کردی:
+
+export PATH="/opt/homebrew/opt/postgresql@14/bin:$PATH"
+
+

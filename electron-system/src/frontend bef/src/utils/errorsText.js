@@ -1,0 +1,35 @@
+import {t} from 'i18next'
+
+const errorsText = {
+  authorIsRequire: (author) => t(`{{author}} is required`, {author}),
+  authorIsNotValid: (author) => t(`{{author}} is not valid`, {author}),
+  blankError: (author) => t(`This field is required`),
+  keyboardError: (author) => t(`Please set your keyboard to English to enter`),
+  appendAnswer: (author) => t(`Please add an answer`),
+  pleaseEnterYourAuthor: (author) => t(`Please enter your {{author}}`, {author}),
+  pleaseEnterCodeSent: (author) => t(`Please enter the sent code`),
+  pleaseEnterAuthCode: (author) => t(`Please enter the authentication code`),
+  pleaseEnterYourAuthorOr: (author, another) =>
+    t(`Please enter your {{author}} or ${another}`, {author}),
+  invalidEmailOrMobileNumber: (author) => t(`The email or mobile number entered is not correct`),
+  invalidValue: (author) => t(`{{author}} entered is not correct`, {author}),
+  mustBe: (author, kind) => t(`{{author}} must be {{kind}}`, {author, kind}),
+  pleaseSelectYour: (author) => t(`Please select your {{author}}`, {author}),
+  email: (author) => t(`email`),
+  mobile: (author) => t(`mobile`),
+  mobileNumber: (author) => t(`mobile number`),
+  confirmationCodeToNumberAuthor: (author) =>
+    t(`The confirmation code was sent to the number {{author}}`, {author}),
+  confirmationCodeToEmailAuthor: (author) =>
+    t(`confirmation code sent to email {{author}}`, {author}),
+  remainingCode: (author) => t(`Receive code {{author}}`, {author}),
+  getCodeAgain: (author) => t(`Receive code again`),
+  dateIsLast: () => t(`This date is past`),
+  startDateIsGreater: () => t(`The end date is smaller than the start date`),
+  minMax: (min, max) =>
+    min === max ? `${min} must be a digit` : `the entered number must be between ${min} and ${max}`,
+  min: (min) => t(` is the lowest value of ${min}`, {min}),
+  max: (max) => t(` The maximum value is ${max}`, {max}),
+  passwordNotMatch: () => t(`passwords are not equal`),
+}
+export default errorsText

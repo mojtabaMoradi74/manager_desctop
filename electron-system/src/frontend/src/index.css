@@ -1,0 +1,186 @@
+@tailwind utilities;
+@import "tailwindcss";
+
+:root {
+	/* -------------------------------------------------------- colors */
+
+	--gray-50: 249 250 251;
+	--gray-100: 243 244 248;
+	--gray-200: 229 231 235;
+	--gray-300: 209 213 219;
+	--gray-400: 156 163 175;
+	--gray-500: 107 114 128;
+	--gray-600: 75 85 99;
+	--gray-700: 55 65 81;
+	--gray-800: 31 41 55;
+	--gray-900: 17 24 39;
+	--primary: 250 93 42;
+	--secondary: 25 191 211;
+	--danger: 204 20 20;
+	--warning: 245 127 23;
+	--success: 90 171 25;
+	--info: 67 102 231;
+	--white: 255 255 255;
+	--black: 0 0 0;
+	/* ---------------------------- dynamic */
+	--gray-d-50: var(--gray-50);
+	--gray-d-100: var(--gray-100);
+	--gray-d-200: var(--gray-200);
+	--gray-d-300: var(--gray-300);
+	--gray-d-400: var(--gray-400);
+	--gray-d-500: var(--gray-500);
+	--gray-d-600: var(--gray-600);
+	--gray-d-700: var(--gray-700);
+	--gray-d-800: var(--gray-800);
+	--gray-d-900: var(--gray-900);
+	--color-d-white: var(--white);
+	--color-d-black: var(--black);
+
+	/* ---------------------------- static */
+	--gray-s-50: var(--gray-50);
+	--gray-s-100: var(--gray-100);
+	--gray-s-200: var(--gray-200);
+	--gray-s-300: var(--gray-300);
+	--gray-s-400: var(--gray-400);
+	--gray-s-500: var(--gray-500);
+	--gray-s-600: var(--gray-600);
+	--gray-s-700: var(--gray-700);
+	--gray-s-800: var(--gray-800);
+	--gray-s-900: var(--gray-900);
+	--color-s-white: var(--white);
+	--color-s-black: var(--black);
+
+	/* ---------------------------- main palette */
+	--color-primary: var(--primary);
+	--color-secondary: var(--secondary);
+	--color-danger: var(--danger);
+	--color-warning: var(--warning);
+	--color-success: var(--success);
+	--color-info: var(--info);
+
+	/* -------------------------------------------------------- devices */
+	--screens-sm: 640px;
+	--screens-md: 768px;
+	--screen-g: 1024px;
+	--screens-lg: 1024px;
+	--screens-xl: 1280px;
+
+	/* ---------------------------- Minimum breakpoints */
+	--screens-min-sm: calc(640px + 1px);
+	--screens-min-md: calc(768px + 1px);
+	--screens-min-g: calc(1024px + 1px);
+	--screens-min-lg: calc(1024px + 1px);
+	--screens-min-xl: calc(1280px + 1px);
+
+	/* ---------------------------- Maximum breakpoints */
+	--screens-max-sm: calc(640px - 1px);
+	--screens-max-md: calc(768px - 1px);
+	--screens-max-g: calc(1024px - 1px);
+	--screens-max-lg: calc(1024px - 1px);
+	--screens-max-xl: calc(1280px - 1px);
+
+	/* -------------------------------------------------------- text breakpoints */
+	--font-size: 100%;
+	--font-family: IRANYekan, sans-serif;
+	--font-family-2: "Vazir";
+
+	/* ---------------------------- */
+	--text-h1: 1.9rem;
+	--text-h2: 1.7rem;
+	--text-h3: 1.5rem;
+	--text-h4: 1.2rem;
+	--text-h5: 1rem;
+	--text-h6: 0.9rem;
+	--text-h7: 0.8rem;
+	--font-size-xs: 0.688rem;
+	--font-size-sm: 0.833rem;
+	--font-size-md: 1rem;
+	--font-size-lg: 1.125rem;
+	--font-size-xl: 1.25rem;
+	--font-size-2xl: 1.5rem;
+	--font-size-3xl: 1.875rem;
+	--font-size-4xl: 2.25rem;
+	--font-size-5xl: 3rem;
+	--font-size-6xl: 3.75rem;
+	--font-size-7xl: 4.5rem;
+	--font-size-8xl: 6rem;
+	--font-size-9xl: 8rem;
+}
+
+.dark-mode {
+	--gray-d-50: var(--gray-900);
+	--gray-d-100: var(--gray-800);
+	--gray-d-200: var(--gray-700);
+	--gray-d-300: var(--gray-600);
+	--gray-d-400: var(--gray-500);
+	--gray-d-500: var(--gray-400);
+	--gray-d-600: var(--gray-300);
+	--gray-d-700: var(--gray-200);
+	--gray-d-800: var(--gray-100);
+	--gray-d-900: var(--gray-50);
+	--color-d-white: var(--black);
+	--color-d-black: var(--white);
+}
+
+html {
+	direction: rtl;
+}
+
+body {
+	background: rgb(var(--color-d-white));
+	color: rgb(var(--gray-d-900));
+	font-size: var(--font-size);
+}
+
+@media only screen and (max-width: 1024px) {
+	html {
+		font-size: 90%;
+	}
+}
+
+@media only screen and (max-width: 768px) {
+	html {
+		font-size: 80%;
+	}
+}
+
+@media only screen and (max-width: 640px) {
+	html {
+		font-size: 70%;
+	}
+}
+
+/* :root[class~="dark-mode"] {
+	
+	} */
+.ck.ck-dropdown .ck-dropdown__panel.ck-dropdown__panel_nw,
+.ck.ck-dropdown .ck-dropdown__panel.ck-dropdown__panel_sw {
+	max-width: 400px;
+}
+.ck-body-wrapper {
+	/* display: none; */
+}
+
+.ltr-grid {
+	direction: ltr;
+}
+
+html,
+body {
+	padding: 0;
+	margin: 0;
+	font-family: var(--font-family);
+}
+
+html {
+	height: 100%;
+	scroll-behavior: smooth;
+}
+
+input::placeholder {
+	font-family: inherit;
+}
+
+.dir-ltr {
+	direction: ltr;
+}
