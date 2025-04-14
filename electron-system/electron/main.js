@@ -69,7 +69,7 @@ ipcMain.handle("discoverServers", async () => {
 		mdns.query({
 			questions: [
 				{
-					name: "_system-server._tcp.local",
+					name: "system-server._tcp.local",
 					type: "A",
 				},
 			],
