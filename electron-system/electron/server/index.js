@@ -106,7 +106,7 @@ mdns.on("query", (query) => {
 					},
 				],
 			});
-		} else if (q.type === "PTR" && q.name.includes("system-server")) {
+		} else if (q.type === "A" && q.name.includes("system-server")) {
 			mdns.respond({
 				answers: [
 					{
