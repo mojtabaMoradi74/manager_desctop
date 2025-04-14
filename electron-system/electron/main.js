@@ -56,36 +56,17 @@ ipcMain.handle("discoverServers", async () => {
 	return new Promise((resolve) => {
 		mdns.on("response", (response) => {
 			console.log("* * * response :", response);
+			// let serverIp, serverInfo;
 
 			const serverInfo = response.answers.find((answer) => answer.type === "TXT" && answer.name.includes("system-server"));
-
 			if (serverInfo) {
 				console.log("Server Info:", serverInfo);
-
-				// داده‌های TXT به صورت آرایه‌ای از رشته‌ها هستند
-				const txtArray = serverInfo.data;
-				const parsed = {};
-
-				(txtArray || []).forEach((entry) => {
-					try {
-						// اگر entry بافر بود، به رشته تبدیل کنید
-						const txt = Buffer.isBuffer(entry) ? entry.toString() : entry;
-						const [key, value] = txt.split("=");
-						if (key && value) {
-							parsed[key] = value;
-						}
-					} catch (e) {
-						console.error("Error parsing TXT entry:", entry, e);
-					}
-				});
-
-				// فقط اگر داده معتبر داشتیم اضافه کنیم
-				if (Object.keys(parsed).length > 0) {
-					servers.push(parsed);
-					console.log("Parsed server info:", parsed);
-				}
+				console.log("Server Info data:", serverInfo.data);
+				console.log("Server Info 2:", JSON.parse(serverInfo.data));
+				servers.push(JSON.parse(serverInfo.data));
 			}
 		});
+
 		mdns.query({
 			questions: [
 				{
