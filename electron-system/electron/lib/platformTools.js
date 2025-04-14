@@ -1,6 +1,11 @@
-const os = require("os");
-const { exec } = require("child_process");
-const { promisify } = require("util");
+// const os = require("os");
+// const { exec } = require("child_process");
+// const { promisify } = require("util");
+// const execAsync = promisify(exec);
+import os from "os";
+import { exec } from "child_process";
+import { promisify } from "util";
+
 const execAsync = promisify(exec);
 
 // Cache برای جلوگیری از اجرای مکرر
@@ -58,45 +63,3 @@ export async function detectSystemArchitecture() {
 	architectureCache.set(cacheKey, architecture);
 	return architecture;
 }
-
-// const os = require("os");
-// const sudo = require("sudo-prompt");
-// const { promisify } = require("util");
-
-// async function getRealWindowsArch() {
-// 	const { exec } = require("child_process");
-// 	const execPromise = promisify(exec);
-// 	try {
-// 		// از PowerShell برای دریافت معماری واقعی استفاده می‌کنیم
-// 		const { stdout } = await execPromise('powershell.exe -Command "(Get-WmiObject Win32_OperatingSystem).OSArchitecture"');
-// 		const arch = stdout.trim().toLowerCase();
-
-// 		// اگر ۶۴ بیتی باشه
-// 		if (arch.includes("64")) return "x64";
-// 		// اگر ۳۲ بیتی باشه
-// 		if (arch.includes("32")) return "x86";
-// 		return "unknown"; // در صورت عدم تطابق
-// 	} catch (error) {
-// 		console.error("Error checking Windows architecture:", error);
-// 		return "unknown";
-// 	}
-// }
-
-// // تابع تشخیص معماری سیستم
-// export default async function detectSystemArchitecture() {
-// 	let arch = process.arch;
-// 	const platform = process.platform;
-
-// 	// تشخیص دقیق‌تر برای مک‌های M1/M2
-// 	if (platform === "darwin" && os.cpus()[0].model.includes("Apple")) {
-// 		return "arm64";
-// 	}
-
-// 	if (platform === "win32") {
-// 		// بررسی معماری واقعی ویندوز
-// 		const realArch = await getRealWindowsArch();
-// 		return realArch === "unknown" ? arch : realArch;
-// 	}
-
-// 	return arch;
-// }
