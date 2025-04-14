@@ -55,6 +55,8 @@ ipcMain.handle("discoverServers", async () => {
 
 	return new Promise((resolve) => {
 		mdns.on("response", (response) => {
+			console.log("* * * response :", response);
+
 			const server = response.answers.find((a) => a.type === "A" && a.name.includes("system-server"));
 			if (server) {
 				servers.push({
