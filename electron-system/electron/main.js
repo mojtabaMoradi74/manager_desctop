@@ -70,14 +70,10 @@ ipcMain.handle("discoverServers", async () => {
 			// }
 			// const a = response.answers.find((ans) => ans.type === "A" && ans.name.includes("system-server"));
 			// const txt = response.answers.find((ans) => ans.type === "TXT");
-			console.log("Server Info:", ...(serverInfo.data ? JSON.parse(serverInfo.data) : {}));
+			// console.log("Server Info:", ...(serverInfo.data ? JSON.parse(serverInfo.data) : {}));
 
 			if (serverInfo?.data) {
-				servers.push({
-					...(serverInfo.data ? JSON.parse(serverInfo.data) : {}),
-
-					// name: serverInfo.name.replace(".local", ""),
-				});
+				servers.push(serverInfo.data);
 			}
 		});
 
