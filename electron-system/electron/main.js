@@ -58,25 +58,12 @@ ipcMain.handle("discoverServers", async () => {
 			console.log("* * * response :", response);
 			// let serverIp, serverInfo;
 
-			const serverInfo = response.answers.find((answer) => answer.type === "TXT" && answer.name === "system-server._tcp.local");
-			// if (answer.type === "A" && answer.name === "system-server._tcp.local") {
-			// 	serverIp = answer.data;
-			// 	console.log("Server IP:", serverIp);
-			// 	// serverInfo = answer;
-			// }
-			// if (answer.type === "TXT" && answer.name === "system-server._tcp.local") {
-			// 	serverInfo = answer.data;
-			// 	console.log("Server Info:", serverInfo);
-			// }
-			// const a = response.answers.find((ans) => ans.type === "A" && ans.name.includes("system-server"));
-			// const txt = response.answers.find((ans) => ans.type === "TXT");
-			// console.log("Server Info:", ...(serverInfo.data ? JSON.parse(serverInfo.data) : {}));
-
+			const serverInfo = response.answers.find((answer) => answer.type === "TXT" && answer.name.includes("system-server"));
 			if (serverInfo) {
 				console.log("Server Info:", serverInfo);
 				console.log("Server Info data:", serverInfo.data);
 				console.log("Server Info 2:", JSON.parse(serverInfo.data));
-				servers.push(serverInfo.data);
+				servers.push(JSON.parse(serverInfo.data));
 			}
 		});
 
