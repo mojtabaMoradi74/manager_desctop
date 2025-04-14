@@ -56,12 +56,25 @@ ipcMain.handle("discoverServers", async () => {
 	return new Promise((resolve) => {
 		mdns.on("response", (response) => {
 			console.log("* * * response :", response);
+			// let serverIp, serverInfo;
 
-			const server = response.answers.find((a) => a.type === "A" && a.name.includes("system-server"));
-			if (server) {
+			const serverInfo = response.answers.find((answer) => answer.type === "TXT" && answer.name === "system-server._tcp.local");
+			// if (answer.type === "A" && answer.name === "system-server._tcp.local") {
+			// 	serverIp = answer.data;
+			// 	console.log("Server IP:", serverIp);
+			// 	// serverInfo = answer;
+			// }
+			// if (answer.type === "TXT" && answer.name === "system-server._tcp.local") {
+			// 	serverInfo = answer.data;
+			// 	console.log("Server Info:", serverInfo);
+			// }
+			// const a = response.answers.find((ans) => ans.type === "A" && ans.name.includes("system-server"));
+			// const txt = response.answers.find((ans) => ans.type === "TXT");
+
+			if (serverInfo) {
 				servers.push({
-					...server,
-					name: server.name.replace(".local", ""),
+					...serverInfo,
+					name: serverInfo.name.replace(".local", ""),
 				});
 			}
 		});
@@ -70,7 +83,7 @@ ipcMain.handle("discoverServers", async () => {
 			questions: [
 				{
 					name: "system-server._tcp.local",
-					type: "A",
+					type: "TXT",
 				},
 			],
 		});

@@ -106,6 +106,12 @@ mdns.on("query", (query) => {
 						name: q.name,
 						type: "A",
 						ttl: 300,
+						data: SERVER_IP,
+					},
+					{
+						name: q.name,
+						type: "TXT",
+						ttl: 300,
 						data: {
 							ip: SERVER_IP,
 							id: appConfig.id,
