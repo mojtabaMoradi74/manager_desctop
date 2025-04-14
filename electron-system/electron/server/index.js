@@ -6,10 +6,12 @@ const log = require("electron-log");
 const { default: Store } = require("electron-store");
 // require("../src/backend/server");
 const { spawn } = require("child_process");
-const isDev = process.env.NODE_ENV === "development";
+const isDev = true; //process.env.NODE_ENV === "development";
 
 let serverProcess;
-const backendPath = isDev ? path.join(__dirname, "../src/backend/server.js") : path.join(process.resourcesPath, "backend", "server.js");
+const backendPath = isDev
+	? path.join(__dirname, "../../src/backend/server.js")
+	: path.join(process.resourcesPath, "../../src", "backend", "server.js");
 serverProcess = spawn(process.execPath, [backendPath]);
 serverProcess.stdout.on("data", (data) => {
 	console.log(`stdout: ${data}`);
@@ -33,7 +35,9 @@ const appDataDir = path.join(appDataPath, appName);
 const appDataDirPath = path.join(appDataPath, appName, appVersion);
 const appDataDirPath2 = path.join(appDataPath, appName, appId);
 const appDataDirPath3 = path.join(appDataPath, appName, appId, appVersion);
+const deviceName = os.hostname();
 
+console.log(`deviceName: ${deviceName}`);
 console.log(`isDev: ${isDev}`);
 console.log(`isMac: ${isMac}`);
 console.log(`isWin: ${isWin}`);
@@ -47,6 +51,8 @@ console.log(`App Data Dir: ${appDataDir}`);
 console.log(`App Data Dir Path: ${appDataDirPath}`);
 console.log(`App Data Dir Path 2: ${appDataDirPath2}`);
 console.log(`App Data Dir Path 3: ${appDataDirPath3}`);
+console.log(`App Data Dir Path 4: ${backendPath}`);
+console.log(`App Data Dir Path 5`);
 
 const store = new Store();
 const logFilePath = path.join("server_logs.txt");
@@ -105,7 +111,19 @@ mdns.on("query", (query) => {
 						name: q.name,
 						type: "A",
 						ttl: 300,
-						data: SERVER_IP,
+						data: {
+							ip: SERVER_IP,
+							id: appConfig.id,
+							name: appConfig.name,
+							version: appConfig.version,
+							type: appConfig.type,
+							platform: appConfig.platform,
+							architecture: appConfig.architecture,
+							hostname: appConfig.hostname,
+							appName: appConfig.appName,
+							appVersion: appConfig.appVersion,
+							appId: appConfig.appId,
+						},
 					},
 				],
 			});
