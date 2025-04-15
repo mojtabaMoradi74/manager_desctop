@@ -9,7 +9,6 @@ function extractPostgresVersion(output) {
 	const match = output.match(/PostgreSQL\)\s+([\d.]+)/) || output.match(/PostgreSQL\s+([\d.]+)/);
 	return match ? match[1] : null;
 }
-
 /**
  * Check if PostgreSQL is installed and running on macOS/Linux/Windows
  */
@@ -41,23 +40,47 @@ async function checkPostgresInstalled() {
 
 			case "win32":
 				try {
-					const { stdout } = await execPromise('sc query type= service state= all | find "SERVICE_NAME: postgres"');
-					const found = stdout.includes("SERVICE_NAME");
-					if (found) {
-						installed = true;
-						running = stdout.includes("RUNNING");
+					const { stdout } = await execPromise(
+						`powershell "Get-Service | Where-Object { $_.DisplayName -like '*postgres*' } | Select-Object -Property Name,Status"`
+					);
 
-						try {
-							const { stdout: versionOut } = await execPromise("psql --version");
-							version = extractPostgresVersion(versionOut);
-						} catch (e) {
-							error = `Version check failed: ${e.message}`;
-						}
+					if (!stdout.includes("postgres")) {
+						return { installed: false, running: false, error: "No PostgreSQL service found." };
+					}
+
+					installed = true;
+					running = stdout.includes("Running");
+
+					try {
+						const { stdout: versionOut } = await execPromise("psql --version");
+						version = extractPostgresVersion(versionOut);
+					} catch (e) {
+						error = `Version check failed: ${e.message}`;
 					}
 				} catch (e) {
 					error = `Windows service check failed: ${e.message}`;
 				}
 				break;
+
+			// case "win32":
+			// 	try {
+			// 		const { stdout } = await execPromise('sc query type= service state= all | find "SERVICE_NAME: postgres"');
+			// 		const found = stdout.includes("SERVICE_NAME");
+			// 		if (found) {
+			// 			installed = true;
+			// 			running = stdout.includes("RUNNING");
+
+			// 			try {
+			// 				const { stdout: versionOut } = await execPromise("psql --version");
+			// 				version = extractPostgresVersion(versionOut);
+			// 			} catch (e) {
+			// 				error = `Version check failed: ${e.message}`;
+			// 			}
+			// 		}
+			// 	} catch (e) {
+			// 		error = `Windows service check failed: ${e.message}`;
+			// 	}
+			// 	break;
 
 			default:
 				error = "Unsupported platform.";
