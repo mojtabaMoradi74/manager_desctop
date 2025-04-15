@@ -59,6 +59,8 @@ ipcMain.handle("discoverServers", async () => {
 			// let serverIp, serverInfo;
 
 			const serverInfo = response.answers.find((answer) => answer.type === "TXT" && answer.name.includes("system-server"));
+			console.log("* * * serverInfo :", serverInfo);
+
 			if (serverInfo) {
 				console.log("Server Info:", serverInfo);
 				console.log("Server Info data:", serverInfo.data);
