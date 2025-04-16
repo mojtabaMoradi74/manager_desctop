@@ -23,7 +23,7 @@ const ServerConfig = ({ updateConfig, nextStep, prevStep }) => {
 		isCompleted: false,
 		error: null,
 	});
-	console.log({ currentStatus });
+	console.log({ currentStatus, });
 
 	// تابع کمکی برای به‌روزرسانی وضعیت
 	const updateStatus = (message, progress = 0, error = null) => {
@@ -92,22 +92,35 @@ const ServerConfig = ({ updateConfig, nextStep, prevStep }) => {
 	});
 
 	// بررسی وضعیت دیتابیس
-	const checkDatabase = useQueryCustom({
-		queryKey: ["checkDatabase"],
+	// const checkDatabase = useQueryCustom({
+	// 	queryKey: ["checkDatabase"],
+	// 	queryFn: async () => {
+	// 		const data = await window.electronAPI.checkDatabase();
+
+	// 		console.log("* * * checkDatabase : ", { data });
+	// 		if (data.installed) {
+	// 			if (data.running) {
+	// 				configureDatabase.mutate();
+	// 			} else {
+	// 				startDatabase.mutate();
+	// 			}
+	// 		} else {
+	// 			installDatabase.mutate();
+	// 		}
+
+	// 		return data;
+	// 	},
+	// 	onError: (error) => handleError("بررسی", error),
+	// });
+	const manageDatabase = useQueryCustom({
+		queryKey: ["manageDatabase"],
 		queryFn: async () => {
-			const data = await window.electronAPI.checkDatabase();
+			updateStatus(DATABASE_MESSAGES.config, 50)
+			const data = await window.electronAPI.manageDatabase();
+			updateStatus(DATABASE_MESSAGES.completed, 100);
+			setCurrentStatus((prev) => ({ ...prev, isCompleted: true }));
 
-			console.log("* * * checkDatabase : ", { data });
-
-			if (data.installed) {
-				if (data.running) {
-					configureDatabase.mutate();
-				} else {
-					startDatabase.mutate();
-				}
-			} else {
-				installDatabase.mutate();
-			}
+			console.log("* * * manageDatabase : ", { data });
 
 			return data;
 		},

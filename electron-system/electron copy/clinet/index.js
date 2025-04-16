@@ -1,12 +1,7 @@
-// const { app, BrowserWindow, ipcMain } = require("electron");
-// const { io } = require("socket.io-client");
-// const mdns = require("multicast-dns")();
-// const { default: Store } = require("electron-store");
-import { app, BrowserWindow, ipcMain } from "electron";
-import { io } from "socket.io-client";
-import mdns from "multicast-dns";
-import Store from "electron-store";
-
+const { app, BrowserWindow, ipcMain } = require("electron");
+const { io } = require("socket.io-client");
+const mdns = require("multicast-dns")();
+const { default: Store } = require("electron-store");
 // Config
 
 const store = new Store();

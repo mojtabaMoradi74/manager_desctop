@@ -27,6 +27,10 @@ import { useSelector } from "react-redux";
 import QuestionComponent from "src/components/modal/Question";
 
 const Add = () => {
+
+	console.log({ "window": { window } });
+	console.log({ "window.electronAPI": window.electronAPI });
+
 	const { t } = useTranslation();
 	const [SelectTab, setSelectTab] = useState(0);
 	console.log({ SelectTab });
@@ -96,7 +100,7 @@ const Add = () => {
 		console.log("* * * onErrorMutating :", { error });
 	};
 	const saveConfig = useMutationCustom({
-		url: window.electronAPI.saveConfig,
+		url: window.electronAPI?.saveConfig,
 		name: `saveConfig`,
 		onSuccess: onSuccessMutating,
 		onError: onErrorMutating,

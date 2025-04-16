@@ -1,30 +1,13 @@
-// const path = require("path");
-// const { app, BrowserWindow, ipcMain } = require("electron");
-// const mdns = require("multicast-dns")();
-// const os = require("os");
-// const log = require("electron-log");
-// const { default: Store } = require("electron-store");
-// // require("../src/backend/server");
-// const { spawn } = require("child_process");
-// const { detectSystemArchitecture } = require("../lib/platformTools");
-// const isDev = true; //process.env.NODE_ENV === "development";
-import path from "path";
-import { app, BrowserWindow, ipcMain } from "electron";
-import mdns from "multicast-dns";
-import os from "os";
-import log from "electron-log";
-import Store from "electron-store";
-import { spawn } from "child_process";
-import { detectSystemArchitecture } from "../lib/platformTools.js";
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-
-// محاسبه __dirname با استفاده از import.meta.url
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const isDev = true; // process.env.NODE_ENV === "development";
-
+const path = require("path");
+const { app, BrowserWindow, ipcMain } = require("electron");
+const mdns = require("multicast-dns")();
+const os = require("os");
+const log = require("electron-log");
+const { default: Store } = require("electron-store");
+// require("../src/backend/server");
+const { spawn } = require("child_process");
+const { detectSystemArchitecture } = require("../lib/platformTools");
+const isDev = true; //process.env.NODE_ENV === "development";
 
 let serverProcess;
 const backendPath = isDev

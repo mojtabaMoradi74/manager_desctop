@@ -1,40 +1,14 @@
-// const { app, BrowserWindow, ipcMain, dialog } = require("electron");
-// const isDev = true; // require("electron-is-dev");
-// const path = require("path");
-// const fs = require("fs");
-// const { default: Store } = require("electron-store");
-// const { checkMySQLInstalled, startMySQLService, preparingDatabase } = require("./utilities/dbCore/dbChecker.js");
-// const { installMySQL } = require("./utilities/dbCore/dbInstaller");
-// const { configMySQLUser, checkMySQLUser } = require("./utilities/dbCore/dbUser.js");
-// const { randomUUID } = require("crypto");
-
-import { app, BrowserWindow, ipcMain, dialog } from "electron";
-import path from "path";
-import fs from "fs";
-import Store from "electron-store";
-import {
-	checkMySQLInstalled,
-	startMySQLService,
-	preparingDatabase
-} from "./utilities/dbCore/dbChecker.js";
-import MySQLManager from "./utilities/dbCore/MySQLManager.js";
-import {
-	configMySQLUser,
-	checkMySQLUser
-} from "./utilities/dbCore/dbUser.js";
-import { randomUUID } from "crypto";
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-
-// محاسبه __dirname با استفاده از import.meta.url
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const systemDrive = process.env.SystemDrive;
-console.log("Windows is installed on:", systemDrive);
+const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const isDev = true; // require("electron-is-dev");
+const path = require("path");
+const fs = require("fs");
+const { default: Store } = require("electron-store");
+const { checkPostgresInstalled, startPostgresService, ensureDatabaseExists, preparingDatabase } = require("./utilities/dbCore/dbChecker");
+const { installPostgreSQL } = require("./utilities/dbCore/dbInstaller");
+const { configPostgresUser, checkPostgresUser } = require("./utilities/dbCore/dbUser");
+const { randomUUID } = require("crypto");
 
 // console.log("* * * store :", Store);
-const isDev = true; // import isDev from "electron-is-dev";
 
 const store = new Store();
 let mainWindow;
@@ -47,22 +21,11 @@ ipcMain.on("app:reload", () => {
 	}
 });
 
-ipcMain.handle("db:manage", async () => {
-	const mysqlInstaller = new MySQLManager();
-	return await mysqlInstaller.initialize();
-});
-ipcMain.handle("db:check", async () => checkMySQLInstalled());
-ipcMain.handle("db:start", async () => startMySQLService());
-// ipcMain.handle("db:install", async () => {
-// 	// const mysqlInstaller = new DatabaseInstaller('mysql');
-// 	// return await mysqlInstaller.install();
-
-// 	const mysqlInstaller = new DatabaseInstaller();
-// 	return await mysqlInstaller.initialize();
-
-// });
-ipcMain.handle("db:user-check", async () => checkMySQLUser());
-ipcMain.handle("db:user-config", async () => configMySQLUser());
+ipcMain.handle("db:check", async () => checkPostgresInstalled());
+ipcMain.handle("db:start", async () => startPostgresService());
+ipcMain.handle("db:install", async () => installPostgreSQL());
+ipcMain.handle("db:user-check", async () => checkPostgresUser());
+ipcMain.handle("db:user-config", async () => configPostgresUser());
 ipcMain.handle("db:preparing-db", async () => preparingDatabase());
 
 ipcMain.handle("dialog:openDirectory", async () => {
@@ -160,14 +123,15 @@ function createWindow(route = "/") {
 app.whenReady().then(() => {
 	const config = store.get("appConfig");
 	if (config?.type === "client") {
-		import("./clinet.js").then(() => createWindow("/"));
+		require("./clinet");
+		createWindow("/");
 	} else if (config?.type === "server") {
-		import("./server.js").then(() => createWindow("/"));
+		require("./server");
+		createWindow("/");
 	} else {
 		createWindow("/setup");
 	}
 });
-
 app.on("window-all-closed", () => {
 	if (process.platform !== "darwin") {
 		app.quit();

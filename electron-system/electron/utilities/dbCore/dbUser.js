@@ -1,41 +1,37 @@
-const { exec } = require("child_process");
-const { promisify } = require("util");
+
+// const { exec } = require("child_process");
+// const { promisify } = require("util");
+// const execPromise = promisify(exec);
+import { promisify } from "util";
+import { exec } from "child_process";
 const execPromise = promisify(exec);
 
-// تابع امن برای اجرای دستورات PSQL
-async function runPsqlCommand(command, username = "postgres") {
-	try {
-		// تشخیص سیستم عامل برای ساخت دستور مناسب
-		const isWindows = process.platform === "win32";
-		const psqlCmd = isWindows ? `psql -U ${username} -t -c "${command}"` : `sudo -u ${username} psql -t -c "${command}"`;
 
-		const { stdout } = await execPromise(psqlCmd);
+export async function getMySQLConnection(command, rootPassword = "1234") {
+	const isWindows = process.platform === "win32";
+	const mysqlCmd = isWindows
+		? `mysql -u root -p${rootPassword} -e "${command}"`
+		: `mysql -u root -p${rootPassword} -e "${command}"`;
+
+	try {
+		const { stdout } = await execPromise(mysqlCmd);
 		return { success: true, stdout };
 	} catch (error) {
-		return {
-			success: false,
-			error: error.message,
-			stderr: error.stderr,
-		};
+		return { success: false, error: error.message, stderr: error.stderr };
 	}
 }
 
 // بررسی وجود کاربر
-async function checkPostgresUser({ username }) {
+export async function checkMySQLUser({ username }) {
 	try {
-		// استفاده از پارامتر امن برای جلوگیری از SQL injection
-		const { success, stdout } = await runPsqlCommand(`SELECT 1 FROM pg_roles WHERE rolname='${username.replace(/'/g, "''")}'`);
-		console.log("* * * checkPostgresUser step1", { stdout });
+		const connection = await getMySQLConnection();
+		const [rows] = await connection.execute(
+			"SELECT 1 FROM mysql.user WHERE user = ?",
+			[username]
+		);
+		await connection.end();
 
-		if (!success) {
-			return {
-				success: false,
-				existed: false,
-				message: `Error checking user ${username}`,
-			};
-		}
-
-		const userExists = stdout.includes("1");
+		const userExists = rows.length > 0;
 		return {
 			success: true,
 			existed: userExists,
@@ -51,14 +47,13 @@ async function checkPostgresUser({ username }) {
 }
 
 // پیکربندی کاربر
-async function configPostgresUser({ username = "mojtaba", password = "1234", isSuperuser = true } = {}) {
+export async function configMySQLUser({ username = "root", password = "1234", isSuperuser = true } = {}) {
 	console.log({ username, password, isSuperuser });
-	console.log("* * * configPostgresUser step1");
+	console.log("* * * configMySQLUser step1");
 
 	try {
-		// 1. بررسی وجود کاربر
-		const userCheck = await checkPostgresUser({ username });
-		console.log("* * * configPostgresUser step2", { userCheck });
+		const userCheck = await checkMySQLUser({ username });
+		console.log("* * * configMySQLUser step2", { userCheck });
 
 		if (userCheck.existed) {
 			return {
@@ -67,26 +62,23 @@ async function configPostgresUser({ username = "mojtaba", password = "1234", isS
 				message: `User ${username} already exists`,
 			};
 		}
-		console.log("* * * configPostgresUser step3");
+		console.log("* * * configMySQLUser step3");
 
-		// 2. ایجاد کاربر جدید با دستور امن
-		const escapedPassword = password.replace(/'/g, "''");
-		const superuserClause = isSuperuser ? "SUPERUSER" : "";
-		console.log("* * * configPostgresUser step4");
+		const connection = await getMySQLConnection();
+		console.log("* * * configMySQLUser step4");
 
-		const createResult = await runPsqlCommand(`CREATE USER ${username} ${superuserClause} PASSWORD '${escapedPassword}'`);
-		console.log("* * * configPostgresUser step5", { createResult });
+		await connection.execute(
+			`CREATE USER ?@'localhost' IDENTIFIED BY ?`,
+			[username, password]
+		);
+		console.log("* * * configMySQLUser step5");
 
-		if (!createResult.success) {
-			throw new Error(createResult.error || "Failed to create user");
-		}
-		console.log("* * * configPostgresUser step6");
-
-		// 3. تنظیم مجوزهای اضافی (اختیاری)
+		// اگر کاربر superuser باشه (معادل با دسترسی کامل)
 		if (isSuperuser) {
-			await runPsqlCommand(`ALTER USER ${username} WITH ${superuserClause}`);
+			await connection.execute(`GRANT ALL PRIVILEGES ON *.* TO ?@'localhost' WITH GRANT OPTION`, [username]);
 		}
-		console.log("* * * configPostgresUser step7");
+		await connection.end();
+		console.log("* * * configMySQLUser step6");
 
 		return {
 			success: true,
@@ -100,19 +92,23 @@ async function configPostgresUser({ username = "mojtaba", password = "1234", isS
 			error: error.message,
 		};
 	} finally {
-		console.log("* * * configPostgresUser completed");
+		console.log("* * * configMySQLUser completed");
 	}
 }
 
-// تابع برای تغییر رمز عبور کاربر موجود
-async function changePostgresPassword({ username = "mojtaba", newPassword = "1234" }) {
+// تغییر رمز عبور کاربر موجود
+export async function changeMySQLPassword({ username = "root", newPassword = "1234" }) {
 	try {
-		const escapedPassword = newPassword.replace(/'/g, "''");
-		const { success } = await runPsqlCommand(`ALTER USER ${username} WITH PASSWORD '${escapedPassword}'`);
+		const connection = await getMySQLConnection();
+		await connection.execute(
+			`ALTER USER ?@'localhost' IDENTIFIED BY ?`,
+			[username, newPassword]
+		);
+		await connection.end();
 
 		return {
-			success,
-			message: success ? `Password for ${username} changed successfully` : `Failed to change password for ${username}`,
+			success: true,
+			message: `Password for ${username} changed successfully`,
 		};
 	} catch (error) {
 		return {
@@ -123,9 +119,3 @@ async function changePostgresPassword({ username = "mojtaba", newPassword = "123
 	}
 }
 
-module.exports = {
-	configPostgresUser,
-	checkPostgresUser,
-	changePostgresPassword,
-	runPsqlCommand,
-};

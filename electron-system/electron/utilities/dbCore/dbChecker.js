@@ -1,18 +1,14 @@
-const { exec } = require("child_process");
-const { promisify } = require("util");
+import { exec } from "child_process";
+import { promisify } from "util";
 const execPromise = promisify(exec);
 
-/**
- * Get PostgreSQL version from psql --version output
- */
-function extractPostgresVersion(output) {
-	const match = output.match(/PostgreSQL\)\s+([\d.]+)/) || output.match(/PostgreSQL\s+([\d.]+)/);
+
+export function extractMySQLVersion(output) {
+	const match = output.match(/Ver\s+([\d.]+)/);
 	return match ? match[1] : null;
 }
-/**
- * Check if PostgreSQL is installed and running on macOS/Linux/Windows
- */
-async function checkPostgresInstalled() {
+
+export async function checkMySQLInstalled() {
 	let installed = false;
 	let version = null;
 	let running = false;
@@ -23,37 +19,37 @@ async function checkPostgresInstalled() {
 			case "darwin":
 			case "linux":
 				try {
-					const { stdout } = await execPromise("psql --version");
-					installed = stdout.toLowerCase().includes("postgresql");
-					version = extractPostgresVersion(stdout);
+					const { stdout } = await execPromise("mysql --version");
+					installed = stdout.toLowerCase().includes("mysql");
+					version = extractMySQLVersion(stdout);
 
 					try {
-						const { stdout: status } = await execPromise("pg_isready");
-						running = status.includes("accepting connections");
+						const { stdout: status } = await execPromise("mysqladmin ping");
+						running = status.includes("mysqld is alive");
 					} catch (e) {
-						error = `pg_isready failed: ${e.message}`;
+						error = `mysqladmin ping failed: ${e.message}`;
 					}
 				} catch (e) {
-					error = `psql check failed: ${e.message}`;
+					error = `mysql check failed: ${e.message}`;
 				}
 				break;
 
 			case "win32":
 				try {
 					const { stdout } = await execPromise(
-						`powershell "Get-Service | Where-Object { $_.DisplayName -like '*postgres*' } | Select-Object -Property Name,Status"`
+						`powershell "Get-Service | Where-Object { $_.DisplayName -like '*mysql*' } | Select-Object -Property Name,Status"`
 					);
 
-					if (!stdout.includes("postgres")) {
-						return { installed: false, running: false, error: "No PostgreSQL service found." };
+					if (!stdout.includes("mysql")) {
+						return { installed: false, running: false, error: "No MySQL service found." };
 					}
 
 					installed = true;
 					running = stdout.includes("Running");
 
 					try {
-						const { stdout: versionOut } = await execPromise("psql --version");
-						version = extractPostgresVersion(versionOut);
+						const { stdout: versionOut } = await execPromise("mysql --version");
+						version = extractMySQLVersion(versionOut);
 					} catch (e) {
 						error = `Version check failed: ${e.message}`;
 					}
@@ -61,26 +57,6 @@ async function checkPostgresInstalled() {
 					error = `Windows service check failed: ${e.message}`;
 				}
 				break;
-
-			// case "win32":
-			// 	try {
-			// 		const { stdout } = await execPromise('sc query type= service state= all | find "SERVICE_NAME: postgres"');
-			// 		const found = stdout.includes("SERVICE_NAME");
-			// 		if (found) {
-			// 			installed = true;
-			// 			running = stdout.includes("RUNNING");
-
-			// 			try {
-			// 				const { stdout: versionOut } = await execPromise("psql --version");
-			// 				version = extractPostgresVersion(versionOut);
-			// 			} catch (e) {
-			// 				error = `Version check failed: ${e.message}`;
-			// 			}
-			// 		}
-			// 	} catch (e) {
-			// 		error = `Windows service check failed: ${e.message}`;
-			// 	}
-			// 	break;
 
 			default:
 				error = "Unsupported platform.";
@@ -92,14 +68,11 @@ async function checkPostgresInstalled() {
 	return { installed, version, running, error };
 }
 
-/**
- * Try to start PostgreSQL service for current platform
- */
-async function startPostgresService() {
+export async function startMySQLService() {
 	try {
 		switch (process.platform) {
 			case "linux": {
-				const services = ["postgresql", "postgresql@14-main", "postgresql@15-main", "postgres"];
+				const services = ["mysql", "mariadb", "mysqld"];
 				for (const service of services) {
 					try {
 						await execPromise(`sudo systemctl start ${service}`);
@@ -113,19 +86,19 @@ async function startPostgresService() {
 
 			case "darwin":
 				try {
-					await execPromise("brew services start postgresql");
-					return { started: true, service: "postgresql", platform: "darwin" };
+					await execPromise("brew services start mysql");
+					return { started: true, service: "mysql", platform: "darwin" };
 				} catch (e) {
 					return { started: false, error: `brew start failed: ${e.message}` };
 				}
 
 			case "win32":
 				try {
-					const { stdout } = await execPromise('sc query type= service state= all | find "SERVICE_NAME: postgres"');
-					const serviceLines = stdout.split("\n").filter((line) => line.toLowerCase().includes("service_name") && line.toLowerCase().includes("postgres"));
+					const { stdout } = await execPromise('sc query type= service state= all | find "SERVICE_NAME: mysql"');
+					const serviceLines = stdout.split("\n").filter((line) => line.toLowerCase().includes("service_name") && line.toLowerCase().includes("mysql"));
 
 					if (serviceLines.length === 0) {
-						return { started: false, error: "No PostgreSQL service found." };
+						return { started: false, error: "No MySQL service found." };
 					}
 
 					const serviceName = serviceLines[0].split(":")[1].trim();
@@ -143,29 +116,38 @@ async function startPostgresService() {
 	}
 }
 
-async function preparingDatabase({ username = "mojtaba", password = "1234", database = "myDb" } = {}) {
+export async function preparingDatabase({ username = "root", password = "1234", database = "myDb" } = {}) {
 	const isWindows = process.platform === "win32";
-	const passwordEnv = `PGPASSWORD=${password}`;
-	const checkCommand = `psql -U ${username} -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='${database}';"`;
-	const createCommand = `psql -U ${username} -d postgres -c "CREATE DATABASE \\"${database}\\";"`;
-
-	const fullCheckCmd = isWindows ? checkCommand : `${passwordEnv} ${checkCommand}`;
-	const fullCreateCmd = isWindows ? createCommand : `${passwordEnv} ${createCommand}`;
 
 	try {
-		const { stdout } = await execPromise(fullCheckCmd);
+		// Check if MySQL client is available
+		let mysqlPath = "mysql";
+		if (isWindows) {
+			const { stdout } = await execPromise(
+				'powershell "Get-ChildItem \'C:\\Program Files\\MySQL\\*\\bin\\mysql.exe\' | Select-Object -First 1 | % { $_.FullName }"'
+			);
+			if (stdout.trim()) {
+				mysqlPath = stdout.trim();
+			}
+		}
 
-		if (stdout.includes("1")) {
+		// Check if database exists
+		const checkCommand = `"${mysqlPath}" -u${username} -p"${password}" -e "SHOW DATABASES LIKE '${database}';"`;
+		// const checkCommand = `"${mysqlPath}" -u ${username} -p${password} -e "SHOW DATABASES LIKE '${database}';"`;
+		const createCommand = `"${mysqlPath}" -u ${username} -p"${password}" -e "CREATE DATABASE \`${database}\`;"`;
+
+		const { stdout } = await execPromise(checkCommand);
+
+		if (stdout.includes(database)) {
 			return {
 				success: true,
 				created: false,
 				message: `Database '${database}' already exists.`,
 			};
 		} else {
-			await execPromise(fullCreateCmd);
+			await execPromise(createCommand);
 			return {
 				success: true,
-
 				created: true,
 				message: `Database '${database}' created successfully.`,
 			};
@@ -180,28 +162,25 @@ async function preparingDatabase({ username = "mojtaba", password = "1234", data
 	}
 }
 
-// async function checkUserConnection({ username = "mojtaba", password = "1234", database = "myDb" }) {
-// 	const isWindows = process.platform === "win32";
-// 	const passwordEnv = `PGPASSWORD=${password}`;
-// 	const cmd = `psql -U ${username} -d ${database} -c "SELECT 1;"`;
+export async function initializeDatabase() {
+	// بررسی نصب MySQL
+	const { installed, version, running, error } = await checkMySQLInstalled();
 
-// 	const fullCommand = isWindows ? cmd : `${passwordEnv} ${cmd}`;
+	if (!installed) {
+		console.error("MySQL is not installed:", error);
+		return;
+	}
 
-// 	try {
-// 		const { stdout } = await execPromise(fullCommand);
-// 		return {
-// 			success: true,
-// 			message: `User ${username} connected successfully.`,
-// 			stdout,
-// 		};
-// 	} catch (error) {
-// 		return {
-// 			success: false,
-// 			message: `Failed to connect as user ${username}.`,
-// 			error: error.message,
-// 			stderr: error.stderr,
-// 		};
-// 	}
-// }
+	if (!running) {
+		const { started, error } = await startMySQLService();
+		if (!started) {
+			console.error("Failed to start MySQL:", error);
+			return;
+		}
+	}
 
-module.exports = { checkPostgresInstalled, startPostgresService, preparingDatabase };
+	// ایجاد دیتابیس
+	const result = await preparingDatabase();
+	console.log(result.message);
+}
+

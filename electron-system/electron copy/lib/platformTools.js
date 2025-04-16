@@ -11,7 +11,7 @@ const execAsync = promisify(exec);
 // Cache برای جلوگیری از اجرای مکرر
 const architectureCache = new Map();
 
-export async function getWindowsArchitecture() {
+async function getWindowsArchitecture() {
 	try {
 		const { stdout } = await execAsync('powershell.exe -Command "(Get-WmiObject Win32_OperatingSystem).OSArchitecture"', { timeout: 5000 });
 
@@ -27,7 +27,7 @@ export async function getWindowsArchitecture() {
 	}
 }
 
-export function isAppleSilicon() {
+function isAppleSilicon() {
 	try {
 		return process.platform === "darwin" && /Apple (M1|M2|M3|Silicon)/i.test(os.cpus()[0].model);
 	} catch {
@@ -63,7 +63,7 @@ export async function detectSystemArchitecture() {
 	architectureCache.set(cacheKey, architecture);
 	return architecture;
 }
-export function checkSystemRequirements() {
+function checkSystemRequirements() {
 	const os = require('os');
 	const totalMem = os.totalmem() / (1024 * 1024); // MB
 	const cpuCores = os.cpus().length;

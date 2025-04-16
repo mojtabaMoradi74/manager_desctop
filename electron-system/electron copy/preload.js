@@ -1,14 +1,9 @@
-// import { contextBridge, ipcRenderer } from "electron";
 const { contextBridge, ipcRenderer } = require("electron");
-
-
-console.log("✅✅✅ preload.js LOADED");
 
 contextBridge.exposeInMainWorld("electronAPI", {
 	selectDirectory: () => ipcRenderer.invoke("dialog:openDirectory"),
 	checkDatabase: () => ipcRenderer.invoke("db:check"),
 	installDatabase: async () => ipcRenderer.invoke("db:install"),
-	manageDatabase: async () => ipcRenderer.invoke("db:manage"),
 	startDatabase: () => ipcRenderer.invoke("db:start"),
 	configDatabaseUser: () => ipcRenderer.invoke("db:user-config"),
 	preparingDatabase: () => ipcRenderer.invoke("db:preparing-db"),
