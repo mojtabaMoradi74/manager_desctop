@@ -30,3 +30,5 @@ electron-system/
 ├── .env                   # متغیرهای محیطی
 ├── package.json
 └── README.md
+
+https://cdn.mysql.com//archives/mysql-8.0/mysql-8.0.36-winx64.zip
