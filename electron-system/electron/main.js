@@ -35,17 +35,17 @@ console.log("Windows is installed on:", systemDrive);
 
 // console.log("* * * store :", Store);
 const isDev = true; // import isDev from "electron-is-dev";
-let mysqlInstaller
+let mysqlManager
 const store = new Store();
 const firstConf = store.get("appConfig")
 console.log({ firstConf });
 
 if (firstConf?.isServer) {
-	mysqlInstaller = new MySQLManager();
-	mysqlInstaller.initialize()
+	mysqlManager = new MySQLManager();
+	mysqlManager.initialize()
+
 }
 let mainWindow;
-
 
 
 ipcMain.on("app:reload", () => {
@@ -58,18 +58,39 @@ ipcMain.on("app:reload", () => {
 });
 
 ipcMain.handle("db:manage", async () => {
-	mysqlInstaller = new MySQLManager();
+	mysqlManager = new MySQLManager();
+	// دریافت رویدادهای status
+	mysqlManager.on('status', (message) => {
+		console.log('Status:', message);
+		// می‌توانید این پیام‌ها را در UI نمایش دهید
+	});
 
-	return await mysqlInstaller.initialize();
+	// دریافت رویدادهای error
+	mysqlManager.on('error', (error) => {
+		console.error('Error:', error);
+		// مدیریت خطاها در اینجا
+	});
+
+	// دریافت پیشرفت دانلود
+	mysqlManager.on('download-progress', (percent) => {
+		console.log(`Download progress: ${percent}%`);
+		// نمایش پیشرفت دانلود در UI
+	});
+
+	// دریافت پیام‌های دیباگ
+	mysqlManager.on('debug', (message) => {
+		console.debug('Debug:', message);
+	});
+	return await mysqlManager.initialize();
 });
 ipcMain.handle("db:check", async () => checkMySQLInstalled());
 ipcMain.handle("db:start", async () => startMySQLService());
 // ipcMain.handle("db:install", async () => {
-// 	// const mysqlInstaller = new DatabaseInstaller('mysql');
-// 	// return await mysqlInstaller.install();
+// 	// const mysqlManager  = new DatabaseInstaller('mysql');
+// 	// return await mysqlManager .install();
 
-// 	const mysqlInstaller = new DatabaseInstaller();
-// 	return await mysqlInstaller.initialize();
+// 	const mysqlManager  = new DatabaseInstaller();
+// 	return await mysqlManager .initialize();
 
 // });
 ipcMain.handle("db:user-check", async () => checkMySQLUser());
@@ -168,7 +189,7 @@ function createWindow(route = "/") {
 	// console.log("* * * mainWindow.webContents.session :", mainWindow.webContents.session);
 
 	mainWindow.on("closed", () => {
-		if (mysqlInstaller) mysqlInstaller.stop()
+		if (mysqlManager) mysqlManager.stop()
 		mainWindow = null
 	});
 }
@@ -191,7 +212,7 @@ app.on("window-all-closed", () => {
 	}
 });
 app.on('before-quit', async () => {
-	if (mysqlInstaller) mysqlInstaller.stop()
+	if (mysqlManager) mysqlManager.stop()
 });
 app.on("activate", () => {
 	if (mainWindow === null) {
