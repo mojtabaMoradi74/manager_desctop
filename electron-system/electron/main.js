@@ -35,9 +35,19 @@ console.log("Windows is installed on:", systemDrive);
 
 // console.log("* * * store :", Store);
 const isDev = true; // import isDev from "electron-is-dev";
-
+let mysqlInstaller
 const store = new Store();
+const firstConf = store.get("appConfig")
+console.log({ firstConf });
+
+if (firstConf?.isServer) {
+	mysqlInstaller = new MySQLManager();
+	mysqlInstaller.initialize()
+}
 let mainWindow;
+
+
+
 ipcMain.on("app:reload", () => {
 	const win = BrowserWindow.getAllWindows()[0];
 	if (win) {
@@ -48,7 +58,8 @@ ipcMain.on("app:reload", () => {
 });
 
 ipcMain.handle("db:manage", async () => {
-	const mysqlInstaller = new MySQLManager();
+	mysqlInstaller = new MySQLManager();
+
 	return await mysqlInstaller.initialize();
 });
 ipcMain.handle("db:check", async () => checkMySQLInstalled());
@@ -73,7 +84,9 @@ ipcMain.handle("dialog:openDirectory", async () => {
 });
 
 ipcMain.handle("config:save", (_, config) => {
-	config.id = config?.id || randomUUID();
+	config = config || {}
+	config.isServer = config.type == "server"
+	config.id = config.id || randomUUID();
 	store.set("appConfig", config);
 	return true;
 });
@@ -154,7 +167,10 @@ function createWindow(route = "/") {
 	// console.log("* * * mainWindow.webContents :", mainWindow.webContents);
 	// console.log("* * * mainWindow.webContents.session :", mainWindow.webContents.session);
 
-	mainWindow.on("closed", () => (mainWindow = null));
+	mainWindow.on("closed", () => {
+		if (mysqlInstaller) mysqlInstaller.stop()
+		mainWindow = null
+	});
 }
 
 app.whenReady().then(() => {
@@ -169,11 +185,14 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
+
 	if (process.platform !== "darwin") {
 		app.quit();
 	}
 });
-
+app.on('before-quit', async () => {
+	if (mysqlInstaller) mysqlInstaller.stop()
+});
 app.on("activate", () => {
 	if (mainWindow === null) {
 		createWindow();

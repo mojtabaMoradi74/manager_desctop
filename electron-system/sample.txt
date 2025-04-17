@@ -32,3 +32,5 @@ electron-system/
 └── README.md
 
 https://cdn.mysql.com//archives/mysql-8.0/mysql-8.0.36-winx64.zip
+
+netstat -ano | findstr :3306

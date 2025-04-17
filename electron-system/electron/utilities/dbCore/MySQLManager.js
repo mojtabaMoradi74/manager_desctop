@@ -40,15 +40,23 @@ const fileNames = {
 		ia32: { name: 'mysql-8.0.36-win32.zip' },
 	},
 	darwin: {
-		arm64: { name: 'mysql-8.0.36-winx64.zip' },
-		x64: { name: 'mysql-8.0.36-winx64.zip' }
+		arm64: { name: 'mysql-8.0.36-macos13-arm64.dmg' },
+		x64: { name: 'mysql-8.0.36-macos13-x86_64.dmg' }
 	},
 	linux: {
-		x64: { name: 'mysql-8.0.36-winx64.zip' },
-		arm64: { name: 'mysql-8.0.36-winx64.zip' }
+		x64: { name: 'mysql-8.0.36-linux-glibc2.12-x86_64.tar.xz' },
+		arm64: { name: 'mysql-8.0.36-linux-glibc2.28-aarch64.tar.xz' }
 	}
 };
-
+/**
+ * MySQL Manager for Electron applications
+ * @class
+ * @property {string} platform - Current platform (win32, darwin, linux)
+ * @property {string} arch - Current architecture (x64, arm64, etc.)
+ * @property {string} resourcesPath - Path to MySQL assets
+ * @property {string} installDir - Installation directory
+ * @property {Object} config - MySQL configuration
+ */
 class MySQLManager {
 	constructor() {
 		this.platform = process.platform;
@@ -60,43 +68,57 @@ class MySQLManager {
 		this.installDir = path.join(app.getPath('userData'), 'mysql');
 		this.config = {
 			port: 3306,
-			rootPassword: randomBytes(8).toString('hex'),
-			socketPath: path.join(this.installDir, 'mysql.sock')
+			rootPassword: 1234,
+			socketPath: path.join(this.installDir, 'mysql.sock'),
+			// host: 'localhost',
+			host: '127.0.0.1', // نه localhost
+			user: 'root',
+			// password: 1234,
 		};
-	}
+		this.serverStatus = {
 
+		}
+	}
+	/**
+	 * Initialize MySQL server (install if needed)
+	 * @async
+	 * @returns {Promise<boolean>} True if initialization was successful
+	 * @throws {Error} If initialization fails
+	 */
 	async initialize() {
 		try {
-			if (await this.isInstalled()) {
-				console.log("* * * initialize isInstalled")
-				await this.startServer();
-				console.log("* * * initialize startServer")
+			// await this.checkCompatibility();
 
+			if (await this.isInstalled()) {
+				this.serverStatus.isNew = false
+				console.log("MySQL already installed, starting server...");
+				if (!await this.checkAlive()) {
+					await this.startServer();
+					return true
+				}
 				return true;
 			}
+			this.serverStatus.isNew = true
+			console.log("Installing MySQL...");
 			await this.install();
 			await this.startServer();
-			await this.setRootPassword();
+			console.log("Installed MySQL...");
+			return true;
+
 		} catch (error) {
 			console.error('MySQL initialization failed:', error);
+			// await this.cleanupOnError();
 			throw error;
-		} finally {
-			this.mysqlProcess.stdout?.on('data', (data) => {
-				console.log('[MySQL]', data.toString());
-			});
+		}
+	}
 
-			this.mysqlProcess.stderr?.on('data', (data) => {
-				console.error('[MySQL ERROR]', data.toString());
-			});
 
-			this.mysqlProcess.on('exit', (code, signal) => {
-				console.log(`[MySQL] Process exited with code ${code}, signal ${signal}`);
-			});
-
-			this.mysqlProcess.on('error', (err) => {
-				console.error('[MySQL ERROR]', err);
-			});
-
+	async cleanupOnError() {
+		try {
+			await this.stopMySQL();
+			await fs.remove(this.installDir).catch(() => { });
+		} catch (cleanupError) {
+			console.error('Cleanup failed:', cleanupError);
 		}
 	}
 
@@ -111,10 +133,16 @@ class MySQLManager {
 
 	async isInstalled() {
 		const mysqldPath = this.getMySQLBinaryPath('mysqld');
-		return fs.pathExists(mysqldPath);
+		const pathExists = await fs.pathExists(mysqldPath);
+		console.log({ pathExists, mysqldPath });
+		return pathExists;
 	}
 
 	async install() {
+		// await fs.chmod(this.installDir, 0o777);
+		// await fs.chmod(path.join(this.installDir, 'data'), 0o777);
+
+
 		await fs.ensureDir(this.installDir);
 
 		if (await this.copyFromAssets()) {
@@ -125,12 +153,12 @@ class MySQLManager {
 		}
 		console.log("* * * install completed download")
 
-		await this.createConfigFile();
-		console.log("* * * install createConfigFile")
+
 
 		if (!fs.pathExistsSync(path.join(this.installDir, 'data'))) {
 			console.log("* * * install not pathExistsSync")
-
+			await this.createConfigFile();
+			console.log("* * * install createConfigFile")
 			await this.initializeDatabase();
 		}
 		console.log("* * * install pathExistsSync")
@@ -184,46 +212,12 @@ class MySQLManager {
 		}
 	}
 
-	// async copyFromAssets() {
-	// 	const platformAssets = path.join(this.resourcesPath, this.platform, this.arch);
-	// 	const zipFile = path.join(platformAssets, fileNames[this.platform][this.arch].name);
-	// 	if (await fs.pathExists(this.installDir)) {
-	// 		try {
-	// 			//   await this.stop(); // متوقف کردن mysql اگه فعاله
-	// 			await fs.remove(this.installDir); // بعدش حذف امن
-	// 		} catch (err) {
-	// 			console.error("خطا در حذف mysql:", err);
-	// 			throw err;
-	// 		}
-	// 	}
-
-	// 	if (await fs.pathExists(zipFile)) {
-	// 		console.log('* * * Found zip in assets, extracting...');
-	// 		await extract(zipFile, { dir: this.installDir });
-	// 		console.log('* * * Found zip in assets, extracting...');
-
-	// 		const extractedDir = path.join(this.installDir, fileNames[this.platform][this.arch].name);
-	// 		if (await fs.pathExists(extractedDir)) {
-	// 			await fs.copy(extractedDir, this.installDir);
-	// 			await fs.remove(extractedDir);
-	// 		}
-	// 		return true;
-	// 	} else if (await fs.pathExists(platformAssets)) {
-	// 		console.log('* * * Copying extracted mysql from assets...');
-	// 		await fs.copy(platformAssets, this.installDir);
-	// 		return true;
-	// 	}
-
-	// 	console.warn('* * * No mysql zip or extracted folder found in assets.');
-	// 	return false;
-	// }
-
 
 	async downloadAndExtract() {
 		const downloadUrl = this.getDownloadUrl();
-		const tempZip = path.join(app.getPath('temp'), 'mysql.zip');
-		console.log("* * * downloadAndExtract tempZip", tempZip)
-		console.log("* * * downloadAndExtract downloadUrl", downloadUrl)
+		const tempFile = path.join(app.getPath('temp'), `mysql-${Date.now()}`);
+
+		console.log(`Downloading MySQL from ${downloadUrl}...`);
 
 		const response = await axios({
 			method: 'get',
@@ -231,19 +225,29 @@ class MySQLManager {
 			responseType: 'stream'
 		});
 
-		console.log("* * * downloadAndExtract completed download")
-		fs.createWriteStream(tempZip).on('error', (err) => {
-			console.error("WriteStream error:", err);
+		// Track download progress
+		let downloadedBytes = 0;
+		const totalBytes = parseInt(response.headers['content-length'], 10);
+		response.data.on('data', (chunk) => {
+			downloadedBytes += chunk.length;
+			const percent = ((downloadedBytes / totalBytes) * 100).toFixed(2);
+			console.log(`Download progress: ${percent}%`);
 		});
-		console.log("* * * downloadAndExtract createWriteStream ok")
 
-		await streamPipeline(response.data, fs.createWriteStream(tempZip));
-		console.log("* * * downloadAndExtract completed streamPipeline")
-		await extract(tempZip, { dir: this.installDir });
-		console.log("* * * downloadAndExtract completed extract")
-		await fs.unlink(tempZip);
-		console.log("* * * downloadAndExtract completed fs")
+		const writer = fs.createWriteStream(tempFile);
+		await streamPipeline(response.data, writer);
 
+		console.log('Extracting MySQL...');
+		if (tempFile.endsWith('.zip')) {
+			await extract(tempFile, { dir: this.installDir });
+		} else if (tempFile.endsWith('.tar.xz')) {
+			await this.extractTarXz(tempFile);
+		} else if (tempFile.endsWith('.dmg')) {
+			await this.mountDmg(tempFile);
+		}
+
+		await fs.unlink(tempFile);
+		console.log('MySQL installation files cleaned up');
 	}
 
 
@@ -253,52 +257,270 @@ class MySQLManager {
 	}
 
 	async createConfigFile() {
+		const dataDir = path.join(this.installDir, 'data');
+		await fs.ensureDir(dataDir); // اطمینان از وجود دایرکتوری data
+
 		const configContent = `
-[mysqld]
-port=${this.config.port}
-basedir=${this.installDir}
-datadir=${path.join(this.installDir, 'data')}
-socket=${this.config.socketPath}
-skip-grant-tables
-innodb_buffer_pool_size=32M
-innodb_log_file_size=24M
-innodb_flush_log_at_trx_commit=2
-		`;
+	  		[mysqld]
+	  		port=${this.config.port}
+	  		basedir=${this.installDir.replace(/\\/g, '/')}
+	  		datadir=${dataDir.replace(/\\/g, '/')}
+	  		socket=${this.config.socketPath.replace(/\\/g, '/')}
+	  		innodb_buffer_pool_size=32M
+	  		innodb_log_file_size=24M
+	  		innodb_flush_log_at_trx_commit=2
+	  		character-set-server=utf8mb4
+	  		collation-server=utf8mb4_unicode_ci
+	  		log-error=mysql_error.log
+	  		general_log=1
+	  		general_log_file=mysql_general.log
+	  		bind-address=127.0.0.1
+			enable-named-pipe
+			  `;
+		// skip-networking=OFF
+		// # protocol=tcp
+		// # shared-memory
+		// skip-grant-tables
+		console.log('Creating my.cnf with content:', configContent);
 		await fs.writeFile(path.join(this.installDir, 'my.cnf'), configContent);
 	}
 
 	async initializeDatabase() {
 		const mysqldPath = this.getMySQLBinaryPath('mysqld');
-		await execPromise(`"${mysqldPath}" --initialize-insecure --user=root`);
+		const dataDir = path.join(this.installDir, 'data');
+
+		const command = `"${mysqldPath}" --initialize-insecure --user=root --datadir=${dataDir}`;
+		console.log('Initializing database with:', command);
+
+		try {
+			const { stdout, stderr } = await execPromise(command, { windowsHide: true });
+			console.log('Initialize output:', stdout);
+			console.error('Initialize stderr:', stderr);
+
+		} catch (error) {
+			console.error('Database initialization failed:', {
+				error: error.message,
+				stdout: error.stdout,
+				stderr: error.stderr
+			});
+			throw error;
+		}
 	}
 
+
 	async startServer() {
-		console.log("* * * startServer")
+		// 1. پاک کردن فایل‌های مشکل‌ساز
+		await fs.remove(path.join(this.installDir, 'data', 'ib*'));
+
+		// 2. تنظیم دسترسی‌ها
+		await fs.chmod(this.installDir, 0o777); // دسترسی کامل
+		console.log(`* * * startServer * * *`);
 
 		const mysqldPath = this.getMySQLBinaryPath('mysqld');
-		console.log("* * * startServer mysqldPath", mysqldPath)
-
 		const configPath = path.join(this.installDir, 'my.cnf');
-		console.log("* * * startServer configPath")
+		console.log(`Starting MySQL with: "${mysqldPath}" --defaults-file="${configPath}"`);
 
-		// this.mysqlProcess = exec(`"${mysqldPath}" --defaults-file="${configPath}"`, {
-		// 	windowsHide: true
-		// });
-		this.mysqlProcess = spawn(mysqldPath, ['--defaults-file', configPath], {
+
+		// Verify files exist
+		if (!fs.existsSync(mysqldPath)) {
+			throw new Error(`MySQL binary not found at ${mysqldPath}`);
+		}
+		if (!fs.existsSync(configPath)) {
+			throw new Error(`Config file not found at ${configPath}`);
+		}
+		const args = [
+			`--defaults-file=${configPath}`,
+			'--console',
+		];
+		this.mysqlProcess = spawn(mysqldPath, args, {
 			detached: true,
 			windowsHide: true,
-			stdio: ['ignore', 'pipe', 'pipe'] // اینطوری خروجی و خطا رو می‌گیریم
+			stdio: ['ignore', 'pipe', 'pipe'],
+			// windowsHide: true,
+			windowsVerbatimArguments: true, // برای مدیریت بهتر مسیرها در ویندوز
 		});
 
-		console.log("* * * startServer mysqlProcess")
+		// اضافه کردن لاگ‌گیری از خروجی سرور
+		this.mysqlProcess.stdout.on('data', (data) => {
+			console.log('[MySQL stdout]', data.toString());
+		});
 
-		return await new Promise(resolve => setTimeout(resolve, 5000));
+		this.mysqlProcess.stderr.on('data', (data) => {
+			console.error('[MySQL stderr]', data.toString());
+		});
 
+		// Enhanced logging
+		this.mysqlProcess.stdout.on('data', (data) => {
+			const output = data.toString();
+			console.log('[MySQL]', output);
+			// Check for specific startup messages
+			if (output.includes('ready for connections')) {
+				this.serverReady = true;
+			}
+		});
+
+		this.mysqlProcess.stderr.on('data', (data) => {
+			console.error('[MySQL ERROR]', data.toString());
+		});
+
+		this.mysqlProcess.on('close', (code) => {
+			console.log(`MySQL process exited with code ${code}`);
+		});
+
+		return await this.checkAlive()
+
+
+	}
+
+	async checkAlive() {
+		// Wait for server to be ready (check port)
+		const startTime = Date.now();
+		const timeout = 20000; // 30 seconds timeout
+		const checkInterval = 10000; // Check every second
+
+		return new Promise((resolve, reject) => {
+			const checkPort = async () => {
+				if (Date.now() - startTime > timeout) {
+					reject(new Error('MySQL server startup timed out'));
+					return;
+				}
+
+				try {
+					const isReady = await this.isServerReady();
+					if (isReady) {
+						resolve(true);
+					} else {
+						setTimeout(checkPort, checkInterval);
+					}
+				} catch (err) {
+					setTimeout(checkPort, checkInterval);
+				}
+			};
+
+			checkPort();
+		});
+	}
+	async checkServerStatus() {
+		try {
+			const mysqldPath = this.getMySQLBinaryPath('mysqld');
+			const { stdout } = await execPromise(
+				`"${mysqldPath}" status -u root -p${this.config.rootPassword}`,
+				{ timeout: 5000 }
+			);
+			return stdout.includes('Uptime');
+		} catch {
+			return false;
+		}
+	}
+	async isServerReady() {
+		const mysqladminPath = this.getMySQLBinaryPath('mysqladmin');
+		const passwordPart = this.config.password ? `-p"${this.config.password}"` : '';
+		const command = `"${mysqladminPath}" ping -h 127.0.0.1 -P ${this.config.port} -u ${this.config.user} ${passwordPart}`;
+
+		// const command = `"${mysqladminPath}" ping -h 127.0.0.1 -P ${this.config.port} -u root -p"${this.config.password}" --silent`;
+
+		try {
+			const { stdout, stderr } = await execPromise(command, { timeout: 5000 });
+			console.log('MySQL ping result:', { stdout, stderr });
+			console.log('* * * MySQL is alive * * *');
+			return true
+			// return stdout.includes('mysqld is alive');
+		} catch (error) {
+			console.error('MySQL ping failed:', {
+				error: error.message,
+				stdout: error.stdout,
+				stderr: error.stderr
+			});
+			return false;
+		}
+	}
+	// async isServerReady() {
+	// 	try {
+	// 		const net = await import('net');
+	// 		return new Promise((resolve) => {
+	// 			const socket = net.createConnection(this.config.port, '127.0.0.1', () => {
+	// 				console.log("* * * Server is ready * * * ");
+	// 				socket.end();
+	// 				resolve(true);
+	// 			});
+	// 			socket.on('error', () => resolve(false));
+	// 		});
+	// 	} catch {
+	// 		return false;
+	// 	}
+	// }
+
+	// async isServerReady() {
+	// 	// ابتدا منتظر پیام "ready for connections" در stdout باشیم
+	// 	// await new Promise((resolve) => {
+	// 	// 	this.mysqlProcess.stdout.on('data', (data) => {
+	// 	// 		if (data.includes('ready for connections')) {
+	// 	// 			resolve();
+	// 	// 		}
+	// 	// 	});
+	// 	// });
+
+	// 	// سپس اتصال TCP را بررسی کنیم
+	// 	const net = await import('net');
+	// 	return new Promise((resolve) => {
+	// 		const socket = net.createConnection(3306, '127.0.0.1', () => {
+	// 			socket.end();
+	// 			resolve(true);
+	// 		});
+	// 		socket.on('error', () => resolve(false));
+	// 	});
+	// }
+
+	// async isServerReady() {
+	// 	const mysqladminPath = this.getMySQLBinaryPath('mysqladmin');
+	// 	const command = [
+	// 		`"${mysqladminPath}"`,
+	// 		'ping',
+	// 		`-h 127.0.0.1`,
+	// 		`-P ${this.config.port}`,
+	// 		`-u ${this.config.user}`,
+	// 		// this.config.rootPassword ? `-p"${this.config.rootPassword}"` : '',
+	// 		'--silent'
+	// 	].filter(Boolean).join(' ');
+
+	// 	try {
+	// 		const { stdout } = await execPromise(command, { timeout: 5000 });
+	// 		return stdout.includes('mysqld is alive');
+	// 	} catch (error) {
+	// 		console.error('MySQL ping command:', command);
+	// 		console.error('Ping error details:', {
+	// 			error: error.message,
+	// 			stdout: error.stdout,
+	// 			stderr: error.stderr
+	// 		});
+	// 		return false;
+	// 	}
+	// }
+
+	async isPortAvailable() {
+		const net = await import('net');
+		return new Promise((resolve) => {
+			const server = net.createServer();
+			server.once('error', () => resolve(false));
+			server.once('listening', () => {
+				server.close(() => resolve(true));
+			});
+			server.listen(this.config.port);
+		});
 	}
 
 	async setRootPassword() {
 		const mysqlPath = this.getMySQLBinaryPath('mysql');
-		await execPromise(`"${mysqlPath}" -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${this.config.rootPassword}'"`);
+		return await execPromise(`"${mysqlPath}" -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${this.config.rootPassword}'"`);
+	}
+
+	async checkCompatibility() {
+		const requiredVersion = '8.0.36';
+		const installedVersion = await this.getInstalledVersion();
+
+		if (!installedVersion?.includes(requiredVersion)) {
+			throw new Error(`MySQL version mismatch. Required: ${requiredVersion}, Found: ${installedVersion}`);
+		}
 	}
 
 	getMySQLBinaryPath(binaryName) {
@@ -307,13 +529,39 @@ innodb_flush_log_at_trx_commit=2
 	}
 
 	async stop() {
-		if (this.mysqlProcess) {
-			const mysqladminPath = this.getMySQLBinaryPath('mysqladmin');
-			try {
-				await execPromise(`"${mysqladminPath}" -u root -p${this.config.rootPassword} shutdown`);
-			} catch (error) {
-				this.mysqlProcess.kill();
-			}
+		// if (!this.mysqlProcess) return;
+		if (!await this.isServerReady()) return console.log('MySQL server is stopped');
+		try {
+			console.log("* * * STOP * * *");
+
+			const mysqlPath = this.getMySQLBinaryPath('mysql');
+			const passwordPart = this.config.rootPassword ? `-p"${this.config.rootPassword}"` : '';
+			const command = `"${mysqlPath}" -u root ${passwordPart} shutdown`;
+
+
+			// `"${mysqlPath}" -u root -p${this.config.rootPassword} shutdown`
+			await execPromise(
+				command
+			).catch(() => {
+				// If shutdown command fails, force kill
+				if (this.mysqlProcess) this.mysqlProcess.kill('SIGTERM');
+			});
+
+			this.mysqlProcess = null;
+			console.log('MySQL server stopped successfully');
+		} catch (error) {
+			console.error('Error stopping MySQL server:', error);
+			throw error;
+		}
+	}
+	async getInstalledVersion() {
+		try {
+			const mysqlPath = this.getMySQLBinaryPath('mysql');
+			const { stdout } = await execPromise(`"${mysqlPath}" --version`);
+			return stdout.trim();
+		} catch (error) {
+			console.error('Could not get MySQL version:', error);
+			return null;
 		}
 	}
 
@@ -326,6 +574,8 @@ innodb_flush_log_at_trx_commit=2
 			socketPath: this.config.socketPath
 		};
 	}
+
+
 }
 
 export default MySQLManager;
