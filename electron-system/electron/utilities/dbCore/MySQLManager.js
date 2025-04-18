@@ -65,7 +65,7 @@ class MySQLManager extends EventEmitter {
 
 		this.installDir = path.join(app.getPath("userData"), "mysql");
 		this.config = {
-			port: 50000,
+			port: 3306,
 			rootPassword: 1234,
 			socketPath: path.join(this.installDir, "mysql.sock"),
 			host: "127.0.0.1",
@@ -511,6 +511,61 @@ class MySQLManager extends EventEmitter {
 	/**
 	 * Create MySQL config file
 	 */
+	// async createConfigFile() {
+	// 	const dataDir = path.join(this.installDir, "data");
+	// 	await fs.ensureDir(dataDir);
+
+	// 	// Platform-specific configuration parts
+	// 	const platformSpecific = {
+	// 		win32: `
+	// 			enable-named-pipe
+	// 			shared-memory
+	// 			shared-memory-base-name=MYSQL
+	// 		`,
+	// 		darwin: `
+	// 			skip-mysqlx
+	// 			disable-socket
+	// 			skip-name-resolve
+	// 			tmpdir=${this.escapePath("/tmp")}
+	// 		`,
+	// 		linux: ``,
+	// 	};
+
+	// 	const configContent = `
+	// [mysqld]
+	// # Network configuration
+	// port=${this.config.port}
+	// bind-address=127.0.0.1
+	// skip-networking=OFF
+
+	// # File paths
+	// basedir=${this.platform === "win32" ? this.installDir.replace(/\\/g, "/") : this.escapePath(this.installDir)}
+	// datadir=${this.platform === "win32" ? dataDir.replace(/\\/g, "/") : this.escapePath(dataDir)}
+	// socket=${this.platform === "win32" ? this.config.socketPath.replace(/\\/g, "/") : this.escapePath(this.config.socketPath)}
+	// pid-file=${this.platform === "win32" ? "mysql.pid" : this.escapePath(path.join(this.installDir, "mysql.pid"))}
+
+	// # InnoDB settings
+	// innodb_buffer_pool_size=32M
+	// innodb_flush_method=${this.platform === "win32" ? "normal" : "O_DIRECT"}
+	// innodb_flush_log_at_trx_commit=2
+	// innodb_use_native_aio=${this.platform === "win32" ? "ON" : "OFF"}
+
+	// # Character set
+	// character-set-server=utf8mb4
+	// collation-server=utf8mb4_unicode_ci
+
+	// # Logging
+	// log-error=${this.platform === "win32" ? "mysql_error.log" : this.escapePath(path.join(this.installDir, "mysql-error.log"))}
+	// general_log=1
+	// general_log_file=${this.platform === "win32" ? "mysql_general.log" : this.escapePath(path.join(this.installDir, "mysql-general.log"))}
+
+	// # Platform specific configuration
+	// ${platformSpecific[this.platform] || ""}
+	// `.trim();
+
+	// 	await fs.writeFile(path.join(this.installDir, "my.cnf"), configContent);
+	// }
+
 	async createConfigFile() {
 		const dataDir = path.join(this.installDir, "data");
 		await fs.ensureDir(dataDir);
