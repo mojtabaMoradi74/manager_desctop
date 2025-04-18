@@ -1,20 +1,13 @@
-// const ErrorHandle = require("../../lib/ErrorHandle.js");
-// const { promisify } = require("util");
-// const { exec } = require("child_process");
-// const execPromise = promisify(exec);
-
-import ErrorHandle from "../../lib/ErrorHandle.js";
-import { promisify } from "util";
-import { exec } from "child_process";
+const { promisify } = require("util");
+const { exec } = require("child_process");
 const execPromise = promisify(exec);
-
 
 export function extractPostgresVersion(output) {
 	const match = output.match(/PostgreSQL\)\s+([\d.]+)/) || output.match(/PostgreSQL\s+([\d.]+)/);
 	return match ? match[1] : null;
 }
 
-async function checkPostgresInstalledWindows() {
+export async function checkPostgresInstalledWindows() {
 	let installed = false;
 	let version = null;
 	let running = false;
@@ -54,31 +47,6 @@ async function checkPostgresInstalledWindows() {
 	}
 
 	return { installed, version, running, error, serviceName };
-}
-export async function findPostgres() {
-	let version, path, error
-	switch (process.platform) {
-		case "win32":
-			const { stdout: psqlPath } = await execPromise(
-				'powershell "Get-ChildItem \'C:\\Program Files\\PostgreSQL\\*\\bin\\psql.exe\' | Select-Object -First 1 | % { $_.FullName }"'
-			);
-
-			if (!psqlPath.trim()) {
-				error = "psql.exe not found in default locations";
-				throw new ErrorHandle("psql.exe not found in default locations")
-			}
-			const { stdout: versionOut } = await execPromise(
-				`"${psqlPath.trim()}" --version`
-			);
-			version = extractPostgresVersion(versionOut)
-			path = psqlPath.trim()
-		default:
-			error = "Unsupported platform.";
-	}
-
-	return {
-		version, path, error
-	}
 }
 
 async function startPostgresServiceWindows(serviceName) {

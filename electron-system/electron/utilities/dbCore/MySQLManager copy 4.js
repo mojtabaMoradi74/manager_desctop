@@ -65,8 +65,8 @@ class MySQLManager extends EventEmitter {
 
 		this.installDir = path.join(app.getPath("userData"), "mysql");
 		this.config = {
-			port: 3306,
-			rootPassword: 1234,
+			port: 33060,
+			rootPassword: this.generateRandomPassword(),
 			socketPath: path.join(this.installDir, "mysql.sock"),
 			host: "127.0.0.1",
 			user: "root",
@@ -79,7 +79,6 @@ class MySQLManager extends EventEmitter {
 
 		try {
 			const configContent = await fs.readFile(configPath, "utf8");
-			console.log("CONFIG FILE CONTENT:\n", configContent);
 			const portMatch = configContent.match(/port\s*=\s*(\d+)/i);
 
 			if (portMatch && portMatch[1]) {
@@ -101,22 +100,7 @@ class MySQLManager extends EventEmitter {
 	generateRandomPassword() {
 		return crypto.randomBytes(16).toString("hex");
 	}
-	async verifyConfigReadable() {
-		const mysqldPath = this.getMySQLBinaryPath("mysqld");
-		const testCmd = `${this.escapePath(mysqldPath)} --verbose --help`;
 
-		try {
-			const { stdout } = await execPromise(testCmd);
-			console.log("* * * verifyConfigReadable : ", { stdout });
-
-			if (!stdout.includes(`port: ${this.config.port}`)) {
-				throw new Error("Config not being loaded properly");
-			}
-		} catch (error) {
-			this.emit("error", `Config verification failed: ${error.message}`);
-			throw error;
-		}
-	}
 	/**
 	 * Initialize MySQL server
 	 * @returns {Promise<boolean>} True if initialization succeeded
@@ -165,65 +149,82 @@ class MySQLManager extends EventEmitter {
 	/**
 	 * Start MySQL server
 	 */
-	async startServer(force = false) {
+	async startServer(force) {
 		try {
-			// await this.stop();
-			// await this.cleanLockFiles();
-
-			try {
-				await fs.remove(this.config.socketPath);
-				await fs.remove("/tmp/mysqlx.sock").catch(() => {});
-			} catch (err) {
-				this.emit("debug", "No existing socket files to clean");
-			}
-			// Verify config file exists
+			// Add these checks at the start
 			if (!(await this.verifyConfigFile())) {
 				throw new Error("Invalid config file");
 			}
 
-			// Check port availability if forced
 			if (force && !(await this.isPortAvailable(this.config.port))) {
 				this.config.port = await this.findAvailablePort();
 				this.emit("status", `Port in use, switched to ${this.config.port}`);
-				await this.createConfigFile();
+				await this.createConfigFile(); // آپدیت فایل کانفیگ با پورت جدید
 			}
 
 			const mysqldPath = this.getMySQLBinaryPath("mysqld");
 			const configPath = path.join(this.installDir, "my.cnf");
 
-			// Verify paths exist
+			// 2. تنظیم مجوز اجرایی
+			if (this.platform === "darwin") {
+				try {
+					await fs.chmod(mysqldPath, 0o755); // rwxr-xr-x
+				} catch (err) {
+					console.error("Cannot set executable permissions:", err);
+				}
+			}
 			if (!fs.existsSync(mysqldPath)) {
 				throw new Error(`MySQL binary not found at ${mysqldPath}`);
 			}
 
+			if (!fs.existsSync(configPath)) {
+				throw new Error(`Config file not found at ${configPath}`);
+			}
 			if (!(await this.verifyBinary(mysqldPath))) {
 				throw new Error(`MySQL binary is not executable: ${mysqldPath}`);
 			}
+			if (this.platform === "darwin") {
+				await execPromise(`chmod -R 755 ${this.escapePath(path.join(this.installDir, "bin"))}`);
+			}
 
-			this.emit("debug", `Starting MySQL with binary: ${mysqldPath}`);
-			console.log({ port: this.config.port });
+			this.emit("debug", "Install directory contents:", fs.readdirSync(this.installDir));
+			this.emit("debug", "File stats:", fs.statSync(mysqldPath));
 
-			// Prepare arguments
-			const args = [
-				`--defaults-file=${configPath}`,
-				"--console",
-				// `--port=${this.config.port}`,
-				// "--bind-address=127.0.0.1",
-				// "--skip-networking=OFF",
-			];
+			// Properly escape paths for shell
+			const escapedMysqldPath = this.escapePath(mysqldPath);
+			const escapedConfigPath = this.escapePath(configPath);
 
-			// Start the process
-			this.mysqlProcess = spawn(mysqldPath, args, {
-				detached: true,
-				stdio: "inherit",
-				// stdio: ["ignore", "pipe", "pipe"],
-				// shell: false,
-			});
+			const args = [`--defaults-file=${escapedConfigPath}`, "--console"];
 
-			// Process event handlers
+			console.log("* * * START COMMAND * * *");
+			if (this.platform === "win32") {
+				this.mysqlProcess = spawn(`${mysqldPath}`, args, {
+					shell: true,
+					detached: true,
+					stdio: ["ignore", "pipe", "pipe"],
+					windowsHide: true,
+				});
+			} else {
+				// macOS/Linux needs the command as a single string
+				this.mysqlProcess = spawn(escapedMysqldPath, args, {
+					detached: true,
+					stdio: ["ignore", "pipe", "pipe"],
+					shell: false, // Important - don't use shell to avoid path splitting
+				});
+				// const fullCommand = `${mysqldPath} ${args.join(" ")}`;
+				// console.log({ fullCommand });
+
+				// this.mysqlProcess = spawn("/bin/sh", ["-c", fullCommand], {
+				// 	detached: true,
+				// 	stdio: ["ignore", "pipe", "pipe"],
+				// });
+			}
+			console.log("* * * END COMMAND * * *");
+
 			this.mysqlProcess.stdout.on("data", (data) => {
 				const output = data.toString();
 				this.emit("debug", `[MySQL] ${output.trim()}`);
+
 				if (output.includes("ready for connections")) {
 					this.serverReady = true;
 					this.emit("status", "MySQL server is ready");
@@ -231,7 +232,7 @@ class MySQLManager extends EventEmitter {
 			});
 
 			this.mysqlProcess.stderr.on("data", (data) => {
-				this.emit("status", `[MySQL] * ${data.toString().trim()}`);
+				this.emit("error", `[MySQL ERROR] ${data.toString().trim()}`);
 			});
 
 			this.mysqlProcess.on("close", (code) => {
@@ -241,27 +242,12 @@ class MySQLManager extends EventEmitter {
 
 			return this.waitForServerReady();
 		} catch (error) {
-			this.emit("error", `Failed to start MySQL: ${error.message}`);
+			this.emit("* * * error", error);
+
 			throw error;
 		}
 	}
-	async cleanLockFiles() {
-		const files = [
-			this.config.socketPath,
-			"/tmp/mysqlx.sock",
-			path.join(this.installDir, "mysql.pid"),
-			path.join(this.installDir, "data", "ibdata1"),
-			path.join(this.installDir, "data", "ib_logfile*"),
-		];
 
-		for (const file of files) {
-			try {
-				await fs.remove(file);
-			} catch (e) {
-				this.emit("debug", `Cleanup skipped: ${file}`);
-			}
-		}
-	}
 	/**
 	 * Wait for server to be ready
 	 */
@@ -298,13 +284,7 @@ class MySQLManager extends EventEmitter {
 				timeout: 5000,
 				windowsHide: true,
 			});
-			console.log("* * * isServerReady ", { stdout });
-
-			if (stdout.includes("mysqld is alive")) {
-				this.emit("debug", `isServerReady MySQL successfully running on port ${this.config.port}`);
-				return true;
-			}
-			return false;
+			return stdout.includes("mysqld is alive");
 		} catch {
 			return false;
 		}
@@ -494,18 +474,18 @@ class MySQLManager extends EventEmitter {
 		}
 	}
 
-	/**
-	 * Set executable permissions on macOS binaries
-	 */
+	// Set executable permissions on macOS binaries
 	async setExecutablePermissions() {
-		if (this.platform !== "darwin") return;
-
 		try {
 			const binPath = path.join(this.installDir, "bin");
+			if (await fs.pathExists(binPath)) {
+				// Recursively set execute permissions
+				await execPromise(`find "${binPath}" -type f -exec chmod u+x {} +`);
 
-			// Set permissions for all binaries in bin directory
-			// await execPromise(`chmod -R 755 "${binPath}"`);
-			await execPromise(`find "${binPath}" -type f -exec chmod 755 {} +`);
+				// await execPromise(`chmod -R +x "${binPath}"`, {
+				// 	windowsHide: true,
+				// });
+			}
 
 			// Specific binaries that must be executable
 			const requiredBinaries = ["mysqld", "mysql", "mysqladmin"];
@@ -513,12 +493,10 @@ class MySQLManager extends EventEmitter {
 				const binPath = this.getMySQLBinaryPath(bin);
 				if (await fs.pathExists(binPath)) {
 					await fs.chmod(binPath, 0o755); // rwxr-xr-x
-					this.emit("debug", `Set permissions for ${binPath}`);
 				}
 			}
 		} catch (error) {
-			this.emit("error", `Could not set executable permissions: ${error.message}`);
-			throw error;
+			this.emit("warning", `Could not set executable permissions: ${error.message}`);
 		}
 	}
 	formatPathForConfig = (p) => p.replace(/\\/g, "/").replace(/'/g, "\\'");
@@ -531,23 +509,19 @@ class MySQLManager extends EventEmitter {
 		await fs.ensureDir(dataDir);
 
 		const configContent = `
-	[mysqld]
-port=${this.config.port}
-basedir=${this.escapePath(this.installDir)}
-datadir=${this.escapePath(path.join(this.installDir, "data"))}
-socket=${this.escapePath(this.config.socketPath)}
-skip-grant-tables
-innodb_buffer_pool_size=32M
-innodb_log_file_size=24M
-innodb_flush_log_at_trx_commit=2
-`.trim();
+		[mysqld]
+		port=${this.config.port}
+		basedir=${this.escapePath(this.installDir)}
+		datadir=${this.escapePath(path.join(this.installDir, "data"))}
+		socket=${this.escapePath(this.config.socketPath)}
+		skip-grant-tables
+		innodb_buffer_pool_size=32M
+		innodb_log_file_size=24M
+		innodb_flush_log_at_trx_commit=2
+				`;
 		console.log({ configContent });
 
-		const configPath = path.join(this.installDir, "my.cnf");
-		await fs.writeFile(configPath, configContent);
-
-		// Verify MySQL can read the config
-		// await this.verifyConfigReadable();
+		await fs.writeFile(path.join(this.installDir, "my.cnf"), configContent);
 	}
 	async verifyConfigFile() {
 		const configPath = path.join(this.installDir, "my.cnf");
@@ -568,7 +542,7 @@ innodb_flush_log_at_trx_commit=2
 		const mysqldPath = this.getMySQLBinaryPath("mysqld");
 		// const dataDir = path.join(this.installDir, 'data');
 		//  --datadir="${dataDir}"
-		const command = `"${mysqldPath}" --initialize-insecure --user=${this.config.user} `;
+		const command = `"${mysqldPath}" --initialize-insecure --user=${this.config.user}`;
 		this.emit("status", "Initializing database...");
 
 		try {
@@ -580,15 +554,7 @@ innodb_flush_log_at_trx_commit=2
 			throw error;
 		}
 	}
-	async addAntivirusExclusion() {
-		if (this.platform === "win32") {
-			try {
-				await execPromise(`powershell -Command "Add-MpPreference -ExclusionPath '${this.installDir}'"`);
-			} catch (e) {
-				this.emit("warning", "Could not add antivirus exclusion");
-			}
-		}
-	}
+
 	/**
 	 * ایجاد connection pool برای اتصالات کارآمد
 	 */
@@ -707,22 +673,23 @@ innodb_flush_log_at_trx_commit=2
 		];
 
 		// Find the first existing path
-		for (const binPath of possiblePaths) {
-			if (fs.existsSync(binPath)) {
-				// Set executable permissions if not Windows
-				if (this.platform !== "win32") {
+		if (this.platform !== "win32") {
+			for (const binPath of possiblePaths) {
+				if (fs.existsSync(binPath)) {
+					// Set executable permissions if not Windows
 					try {
 						fs.chmodSync(binPath, 0o755); // rwxr-xr-x
-						this.emit("debug", `Set executable permissions for ${binPath}`);
 					} catch (err) {
 						this.emit("warning", `Could not set permissions on ${binPath}: ${err.message}`);
 					}
 				}
+				this.emit("status", `Could set permissions on ${binPath}`);
+
 				return binPath;
 			}
 		}
-		this.emit("warning", `MySQL binary not found in: ${possiblePaths.join(", ")}`);
-		// throw new Error(`MySQL binary not found in: ${possiblePaths.join(", ")}`);
+
+		throw new Error(`Could not find ${binaryName} binary in any of these locations:\n${possiblePaths.join("\n")}`);
 	}
 
 	escapePath(pathStr) {

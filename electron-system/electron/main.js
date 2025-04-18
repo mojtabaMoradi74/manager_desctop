@@ -12,19 +12,12 @@ import { app, BrowserWindow, ipcMain, dialog } from "electron";
 import path from "path";
 import fs from "fs";
 import Store from "electron-store";
-import {
-	checkMySQLInstalled,
-	startMySQLService,
-	preparingDatabase
-} from "./utilities/dbCore/dbChecker.js";
+// import { checkMySQLInstalled, startMySQLService, preparingDatabase } from "./utilities/dbCore/dbChecker.js";
 import MySQLManager from "./utilities/dbCore/MySQLManager.js";
-import {
-	configMySQLUser,
-	checkMySQLUser
-} from "./utilities/dbCore/dbUser.js";
+import { configMySQLUser, checkMySQLUser } from "./utilities/dbCore/dbUser.js";
 import { randomUUID } from "crypto";
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
 // محاسبه __dirname با استفاده از import.meta.url
 const __filename = fileURLToPath(import.meta.url);
@@ -35,18 +28,16 @@ console.log("Windows is installed on:", systemDrive);
 
 // console.log("* * * store :", Store);
 const isDev = true; // import isDev from "electron-is-dev";
-let mysqlManager
+let mysqlManager;
 const store = new Store();
-const firstConf = store.get("appConfig")
+const firstConf = store.get("appConfig");
 console.log({ firstConf });
 
 if (firstConf?.isServer) {
 	mysqlManager = new MySQLManager();
-	mysqlManager.initialize()
-
+	mysqlManager.initialize();
 }
 let mainWindow;
-
 
 ipcMain.on("app:reload", () => {
 	const win = BrowserWindow.getAllWindows()[0];
@@ -60,31 +51,31 @@ ipcMain.on("app:reload", () => {
 ipcMain.handle("db:manage", async () => {
 	mysqlManager = new MySQLManager();
 	// دریافت رویدادهای status
-	mysqlManager.on('status', (message) => {
-		console.log('Status:', message);
+	mysqlManager.on("status", (message) => {
+		console.log("Status:", message);
 		// می‌توانید این پیام‌ها را در UI نمایش دهید
 	});
 
 	// دریافت رویدادهای error
-	mysqlManager.on('error', (error) => {
-		console.error('Error:', error);
+	mysqlManager.on("error", (error) => {
+		console.error("Error:", error);
 		// مدیریت خطاها در اینجا
 	});
 
 	// دریافت پیشرفت دانلود
-	mysqlManager.on('download-progress', (percent) => {
+	mysqlManager.on("download-progress", (percent) => {
 		console.log(`Download progress: ${percent}%`);
 		// نمایش پیشرفت دانلود در UI
 	});
 
 	// دریافت پیام‌های دیباگ
-	mysqlManager.on('debug', (message) => {
-		console.debug('Debug:', message);
+	mysqlManager.on("debug", (message) => {
+		console.debug("Debug:", message);
 	});
 	return await mysqlManager.initialize();
 });
-ipcMain.handle("db:check", async () => checkMySQLInstalled());
-ipcMain.handle("db:start", async () => startMySQLService());
+// ipcMain.handle("db:check", async () => checkMySQLInstalled());
+// ipcMain.handle("db:start", async () => startMySQLService());
 // ipcMain.handle("db:install", async () => {
 // 	// const mysqlManager  = new DatabaseInstaller('mysql');
 // 	// return await mysqlManager .install();
@@ -93,9 +84,9 @@ ipcMain.handle("db:start", async () => startMySQLService());
 // 	return await mysqlManager .initialize();
 
 // });
-ipcMain.handle("db:user-check", async () => checkMySQLUser());
-ipcMain.handle("db:user-config", async () => configMySQLUser());
-ipcMain.handle("db:preparing-db", async () => preparingDatabase());
+// ipcMain.handle("db:user-check", async () => checkMySQLUser());
+// ipcMain.handle("db:user-config", async () => configMySQLUser());
+// ipcMain.handle("db:preparing-db", async () => preparingDatabase());
 
 ipcMain.handle("dialog:openDirectory", async () => {
 	const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -105,8 +96,8 @@ ipcMain.handle("dialog:openDirectory", async () => {
 });
 
 ipcMain.handle("config:save", (_, config) => {
-	config = config || {}
-	config.isServer = config.type == "server"
+	config = config || {};
+	config.isServer = config.type == "server";
 	config.id = config.id || randomUUID();
 	store.set("appConfig", config);
 	return true;
@@ -189,30 +180,29 @@ function createWindow(route = "/") {
 	// console.log("* * * mainWindow.webContents.session :", mainWindow.webContents.session);
 
 	mainWindow.on("closed", () => {
-		if (mysqlManager) mysqlManager.stop()
-		mainWindow = null
+		if (mysqlManager) mysqlManager.stop();
+		mainWindow = null;
 	});
 }
 
 app.whenReady().then(() => {
 	const config = store.get("appConfig");
 	if (config?.type === "client") {
-		import("./clinet.js").then(() => createWindow("/"));
+		import("./clinet/index.js").then(() => createWindow("/"));
 	} else if (config?.type === "server") {
-		import("./server.js").then(() => createWindow("/"));
+		import("./server/index.js").then(() => createWindow("/"));
 	} else {
 		createWindow("/setup");
 	}
 });
 
 app.on("window-all-closed", () => {
-
 	if (process.platform !== "darwin") {
 		app.quit();
 	}
 });
-app.on('before-quit', async () => {
-	if (mysqlManager) mysqlManager.stop()
+app.on("before-quit", async () => {
+	if (mysqlManager) mysqlManager.stop();
 });
 app.on("activate", () => {
 	if (mainWindow === null) {
