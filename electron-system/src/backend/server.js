@@ -49,6 +49,7 @@ const limiter = rateLimit({
 // 		process.exit(1);
 // 	});
 async function startServer() {
+	return "start server";
 	try {
 		// میدلورهای امنیتی و پایه
 		app.use(helmet());

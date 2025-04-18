@@ -10,21 +10,21 @@
 // const isDev = true; //process.env.NODE_ENV === "development";
 import path from "path";
 import { app, BrowserWindow, ipcMain } from "electron";
-import mdns from "multicast-dns";
+import multicastMdns from "multicast-dns";
 import os from "os";
 import log from "electron-log";
 import Store from "electron-store";
 import { spawn } from "child_process";
 import { detectSystemArchitecture } from "../lib/platformTools.js";
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
+const mdns = multicastMdns();
 // محاسبه __dirname با استفاده از import.meta.url
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const isDev = true; // process.env.NODE_ENV === "development";
-
 
 let serverProcess;
 const backendPath = isDev
