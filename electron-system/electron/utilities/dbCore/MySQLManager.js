@@ -515,54 +515,54 @@ class MySQLManager extends EventEmitter {
 		const dataDir = path.join(this.installDir, "data");
 		await fs.ensureDir(dataDir);
 
-		// Platform-specific configuration parts
-		const platformSpecific = {
-			win32: `
-				enable-named-pipe
-				shared-memory
-				shared-memory-base-name=MYSQL
-			`,
-			darwin: `
-				skip-mysqlx
-				disable-socket
-				skip-name-resolve
-				tmpdir=${this.escapePath("/tmp")}
-			`,
-			linux: ``,
-		};
-
-		const configContent = `
+		// تنظیمات پایه‌ای برای تمام پلتفرم‌ها
+		const baseConfig = `
 	[mysqld]
-	# Network configuration
-	port=${this.config.port}
-	bind-address=127.0.0.1
-	skip-networking=OFF
+	# تنظیمات شبکه
+	port = ${this.config.port}
+	bind-address = 127.0.0.1
+	skip-networking = OFF
 	
-	# File paths
-	basedir=${this.platform === "win32" ? this.installDir.replace(/\\/g, "/") : this.escapePath(this.installDir)}
-	datadir=${this.platform === "win32" ? dataDir.replace(/\\/g, "/") : this.escapePath(dataDir)}
-	socket=${this.platform === "win32" ? this.config.socketPath.replace(/\\/g, "/") : this.escapePath(this.config.socketPath)}
-	pid-file=${this.platform === "win32" ? "mysql.pid" : this.escapePath(path.join(this.installDir, "mysql.pid"))}
+	# مسیرهای فایل
+	basedir = "${this.installDir.replace(/\\/g, "/")}"
+	datadir = "${dataDir.replace(/\\/g, "/")}"
+	socket = "${this.config.socketPath.replace(/\\/g, "/")}"
+	pid-file = "${path.join(this.installDir, "mysql.pid").replace(/\\/g, "/")}"
 	
-	# InnoDB settings
-	innodb_buffer_pool_size=32M
-	innodb_flush_method=${this.platform === "win32" ? "normal" : "O_DIRECT"}
-	innodb_flush_log_at_trx_commit=2
-	innodb_use_native_aio=${this.platform === "win32" ? "ON" : "OFF"}
+	# تنظیمات InnoDB
+	innodb_buffer_pool_size = 32M
+	innodb_flush_log_at_trx_commit = 2
+	innodb_use_native_aio = OFF
 	
-	# Character set
-	character-set-server=utf8mb4
-	collation-server=utf8mb4_unicode_ci
+	# کاراکتر ست
+	character-set-server = utf8mb4
+	collation-server = utf8mb4_unicode_ci
 	
-	# Logging
-	log-error=${this.platform === "win32" ? "mysql_error.log" : this.escapePath(path.join(this.installDir, "mysql-error.log"))}
-	general_log=1
-	general_log_file=${this.platform === "win32" ? "mysql_general.log" : this.escapePath(path.join(this.installDir, "mysql-general.log"))}
-	
-	# Platform specific configuration
-	${platformSpecific[this.platform] || ""}
+	# لاگ‌ها
+	log-error = "${path.join(this.installDir, "mysql-error.log").replace(/\\/g, "/")}"
+	general_log = 1
+	general_log_file = "${path.join(this.installDir, "mysql-general.log").replace(/\\/g, "/")}"
 	`.trim();
 
+		// تنظیمات خاص پلتفرم
+		const platformSpecific = {
+			win32: `
+	# تنظیمات خاص ویندوز
+	enable-named-pipe
+	shared-memory
+	shared-memory-base-name = MYSQL
+	`,
+			darwin: `
+	# تنظیمات خاص مک
+	skip-mysqlx
+	tmpdir = /tmp
+	`,
+			linux: `
+	# تنظیمات خاص لینوکس
+	`,
+		};
+
+		const configContent = baseConfig + (platformSpecific[this.platform] || "");
 		await fs.writeFile(path.join(this.installDir, "my.cnf"), configContent);
 	}
 	// 	async createConfigFile() {
