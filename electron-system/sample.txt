@@ -33,4 +33,27 @@ electron-system/
 
 https://cdn.mysql.com//archives/mysql-8.0/mysql-8.0.36-winx64.zip
 
+windows
 netstat -ano | findstr :3306
+
+mac
+netstat -an | grep LISTEN | grep 3306
+sudo lsof -i -P -n | grep mysqld
+lsof -i :3306
+
+بررسی تمام فرآیندهای mysqld:
+ps aux | grep mysqld
+
+کشتن همه فرآیندها:
+sudo pkill -9 mysqld
+
+تمام فرآیندهای MySQL را متوقف کنید:
+sudo pkill -9 mysqld
+
+
+بررسی کنید چه کاربری مالک آن است:
+ls -la /usr/local/var/mysql
+
+
+بررسی تنظیمات پورت MySQL:
+cat /etc/my.cnf | grep port

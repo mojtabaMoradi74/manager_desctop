@@ -65,7 +65,7 @@ class MySQLManager extends EventEmitter {
 
 		this.installDir = path.join(app.getPath("userData"), "mysql");
 		this.config = {
-			port: 3306,
+			port: 50000,
 			rootPassword: 1234,
 			socketPath: path.join(this.installDir, "mysql.sock"),
 			host: "127.0.0.1",
@@ -167,16 +167,6 @@ class MySQLManager extends EventEmitter {
 	 */
 	async startServer(force = false) {
 		try {
-			// await this.stop();
-			// await this.cleanLockFiles();
-
-			// try {
-			// 	await fs.remove(this.config.socketPath);
-			// 	await fs.remove("/tmp/mysqlx.sock").catch(() => {});
-			// } catch (err) {
-			// 	this.emit("debug", "No existing socket files to clean");
-			// }
-			// Verify config file exists
 			if (!(await this.verifyConfigFile())) {
 				throw new Error("Invalid config file");
 			}
@@ -204,25 +194,13 @@ class MySQLManager extends EventEmitter {
 			console.log({ port: this.config.port });
 
 			// Prepare arguments
-			const args = [
-				`--defaults-file=${configPath}`,
-				"--console",
-				// `--port=${this.config.port}`,
-				// "--bind-address=127.0.0.1",
-				// "--skip-networking=OFF",
-			];
+			const args = [`--defaults-file=${configPath}`, "--console"];
 
 			// Start the process
 			this.mysqlProcess = spawn(mysqldPath, args, {
 				detached: true,
-				// stdio: "inherit",
 				stdio: ["ignore", "pipe", "pipe"],
 				// shell: false,
-				// env: {
-				// 	...process.env,
-				// 	MYSQL_TCP_PORT: this.config.port.toString(), // Force TCP port
-				// 	MYSQL_UNIX_PORT: "", // Disable Unix socket
-				// },
 			});
 
 			// Process event handlers
@@ -250,23 +228,6 @@ class MySQLManager extends EventEmitter {
 			throw error;
 		}
 	}
-	async cleanLockFiles() {
-		const files = [
-			this.config.socketPath,
-			"/tmp/mysqlx.sock",
-			path.join(this.installDir, "mysql.pid"),
-			path.join(this.installDir, "data", "ibdata1"),
-			path.join(this.installDir, "data", "ib_logfile*"),
-		];
-
-		for (const file of files) {
-			try {
-				await fs.remove(file);
-			} catch (e) {
-				this.emit("debug", `Cleanup skipped: ${file}`);
-			}
-		}
-	}
 	/**
 	 * Wait for server to be ready
 	 */
@@ -291,26 +252,45 @@ class MySQLManager extends EventEmitter {
 		});
 	}
 
-	/**
-	 * Check if server is ready
-	 */
 	async isServerReady() {
 		const mysqladminPath = this.getMySQLBinaryPath("mysqladmin");
 		const command = `"${mysqladminPath}" ping -h 127.0.0.1 -P ${this.config.port} -u root --protocol=tcp`;
 
 		try {
-			const { stdout } = await execPromise(command, {
+			const { stdout, stderr } = await execPromise(command, {
 				timeout: 5000,
 				windowsHide: true,
 			});
-			console.log("* * * isServerReady ", { stdout });
 
+			// Debug logging - add this temporarily to troubleshoot
+			console.log("MySQL Admin Ping Output:", {
+				stdout: stdout.toString(),
+				stderr: stderr?.toString(),
+			});
+
+			// More robust checking
 			if (stdout.includes("mysqld is alive")) {
-				this.emit("debug", `isServerReady MySQL successfully running on port ${this.config.port}`);
+				this.emit("debug", `MySQL server confirmed alive on port ${this.config.port}`);
 				return true;
 			}
+
+			// Handle empty or unexpected responses
+			if (stdout.trim() === "" && !stderr) {
+				this.emit("warning", "Empty response from mysqladmin ping - server may not be ready");
+				return false;
+			}
+
+			if (stderr) {
+				this.emit("warning", `MySQL ping error: ${stderr.toString()}`);
+			}
+
 			return false;
-		} catch {
+		} catch (error) {
+			// Enhanced error logging
+			this.emit("debug", `MySQL readiness check failed: ${error.message}`);
+			if (error.stderr) {
+				this.emit("debug", `STDERR: ${error.stderr.toString()}`);
+			}
 			return false;
 		}
 	}
@@ -535,30 +515,115 @@ class MySQLManager extends EventEmitter {
 		const dataDir = path.join(this.installDir, "data");
 		await fs.ensureDir(dataDir);
 
-		const configContent = `
-	  		[mysqld]
-	  		port=${this.config.port}
-	  		basedir=${this.installDir.replace(/\\/g, "/")}
-	  		datadir=${dataDir.replace(/\\/g, "/")}
-	  		socket=${this.config.socketPath.replace(/\\/g, "/")}
-	  		innodb_buffer_pool_size=32M
-	  		innodb_log_file_size=24M
-	  		innodb_flush_log_at_trx_commit=2
-	  		character-set-server=utf8mb4
-	  		collation-server=utf8mb4_unicode_ci
-	  		log-error=mysql_error.log
-	  		general_log=1
-	  		general_log_file=mysql_general.log
-	  		bind-address=127.0.0.1
-			enable-named-pipe
-`.trim();
-		console.log({ configContent });
+		// Platform-specific configuration parts
+		const platformSpecific = {
+			win32: `
+				enable-named-pipe
+				shared-memory
+				shared-memory-base-name=MYSQL
+			`,
+			darwin: `
+				skip-mysqlx
+				disable-socket
+				skip-name-resolve
+				tmpdir=${this.escapePath("/tmp")}
+			`,
+			linux: ``,
+		};
 
-		const configPath = path.join(this.installDir, "my.cnf");
-		await fs.writeFile(configPath, configContent);
+		const configContent = `
+	[mysqld]
+	# Network configuration
+	port=${this.config.port}
+	bind-address=127.0.0.1
+	skip-networking=OFF
+	
+	# File paths
+	basedir=${this.platform === "win32" ? this.installDir.replace(/\\/g, "/") : this.escapePath(this.installDir)}
+	datadir=${this.platform === "win32" ? dataDir.replace(/\\/g, "/") : this.escapePath(dataDir)}
+	socket=${this.platform === "win32" ? this.config.socketPath.replace(/\\/g, "/") : this.escapePath(this.config.socketPath)}
+	pid-file=${this.platform === "win32" ? "mysql.pid" : this.escapePath(path.join(this.installDir, "mysql.pid"))}
+	
+	# InnoDB settings
+	innodb_buffer_pool_size=32M
+	innodb_flush_method=${this.platform === "win32" ? "normal" : "O_DIRECT"}
+	innodb_flush_log_at_trx_commit=2
+	innodb_use_native_aio=${this.platform === "win32" ? "ON" : "OFF"}
+	
+	# Character set
+	character-set-server=utf8mb4
+	collation-server=utf8mb4_unicode_ci
+	
+	# Logging
+	log-error=${this.platform === "win32" ? "mysql_error.log" : this.escapePath(path.join(this.installDir, "mysql-error.log"))}
+	general_log=1
+	general_log_file=${this.platform === "win32" ? "mysql_general.log" : this.escapePath(path.join(this.installDir, "mysql-general.log"))}
+	
+	# Platform specific configuration
+	${platformSpecific[this.platform] || ""}
+	`.trim();
+
+		await fs.writeFile(path.join(this.installDir, "my.cnf"), configContent);
+	}
+	// 	async createConfigFile() {
+	// 		const dataDir = path.join(this.installDir, "data");
+	// 		await fs.ensureDir(dataDir);
+
+	// 		const configContent = `
+	// 	  		[mysqld]
+	// 	  		port=${this.config.port}
+	// 	  		basedir=${this.installDir.replace(/\\/g, "/")}
+	// 	  		datadir=${dataDir.replace(/\\/g, "/")}
+	// 	  		socket=${this.config.socketPath.replace(/\\/g, "/")}
+	// 	  		innodb_buffer_pool_size=32M
+	// 	  		innodb_log_file_size=24M
+	// 	  		innodb_flush_log_at_trx_commit=2
+	// 	  		character-set-server=utf8mb4
+	// 	  		collation-server=utf8mb4_unicode_ci
+	// 	  		log-error=mysql_error.log
+	// 	  		general_log=1
+	// 	  		general_log_file=mysql_general.log
+	// 	  		bind-address=127.0.0.1
+	// 			enable-named-pipe
+	// `.trim();
+	// 		console.log({ configContent });
+
+	// 		const configPath = path.join(this.installDir, "my.cnf");
+	// 		await fs.writeFile(configPath, configContent);
+
+	// 	}
+	async verifyConfig() {
+		if (this.platform === "darwin") {
+			// Fix library paths on macOS
+			await this.fixMacOSLibraryPaths();
+		}
 
 		// Verify MySQL can read the config
-		// await this.verifyConfigReadable();
+		const mysqldPath = this.getMySQLBinaryPath("mysqld");
+		const cmd = `${this.escapePath(mysqldPath)} --verbose --help`;
+
+		try {
+			const { stdout } = await execPromise(cmd);
+			if (!stdout.includes(`port: ${this.config.port}`)) {
+				throw new Error("Config not loaded properly");
+			}
+		} catch (error) {
+			this.emit("error", `Config verification failed: ${error.message}`);
+			throw error;
+		}
+	}
+	async fixMacOSLibraryPaths() {
+		const bins = ["mysqld", "mysql", "mysqladmin"];
+		for (const bin of bins) {
+			const binPath = path.join(this.installDir, "bin", bin);
+			if (fs.existsSync(binPath)) {
+				try {
+					await execPromise(`install_name_tool -add_rpath @executable_path/../lib ${binPath}`);
+				} catch (e) {
+					this.emit("warning", `Library path fix failed for ${bin}`);
+				}
+			}
+		}
 	}
 	async verifyConfigFile() {
 		const configPath = path.join(this.installDir, "my.cnf");
@@ -579,7 +644,7 @@ class MySQLManager extends EventEmitter {
 		const mysqldPath = this.getMySQLBinaryPath("mysqld");
 		// const dataDir = path.join(this.installDir, 'data');
 		//  --datadir="${dataDir}"
-		const command = `"${mysqldPath}" --initialize-insecure --user=${this.config.user} `;
+		const command = `"${mysqldPath}" --initialize-insecure --user=${this.config.user} --bind-address=127.0.0.1`;
 		this.emit("status", "Initializing database...");
 
 		try {
