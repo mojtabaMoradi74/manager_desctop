@@ -170,12 +170,12 @@ class MySQLManager extends EventEmitter {
 			// await this.stop();
 			// await this.cleanLockFiles();
 
-			try {
-				await fs.remove(this.config.socketPath);
-				await fs.remove("/tmp/mysqlx.sock").catch(() => {});
-			} catch (err) {
-				this.emit("debug", "No existing socket files to clean");
-			}
+			// try {
+			// 	await fs.remove(this.config.socketPath);
+			// 	await fs.remove("/tmp/mysqlx.sock").catch(() => {});
+			// } catch (err) {
+			// 	this.emit("debug", "No existing socket files to clean");
+			// }
 			// Verify config file exists
 			if (!(await this.verifyConfigFile())) {
 				throw new Error("Invalid config file");
@@ -215,9 +215,14 @@ class MySQLManager extends EventEmitter {
 			// Start the process
 			this.mysqlProcess = spawn(mysqldPath, args, {
 				detached: true,
-				stdio: "inherit",
-				// stdio: ["ignore", "pipe", "pipe"],
+				// stdio: "inherit",
+				stdio: ["ignore", "pipe", "pipe"],
 				// shell: false,
+				// env: {
+				// 	...process.env,
+				// 	MYSQL_TCP_PORT: this.config.port.toString(), // Force TCP port
+				// 	MYSQL_UNIX_PORT: "", // Disable Unix socket
+				// },
 			});
 
 			// Process event handlers
@@ -531,15 +536,21 @@ class MySQLManager extends EventEmitter {
 		await fs.ensureDir(dataDir);
 
 		const configContent = `
-	[mysqld]
-port=${this.config.port}
-basedir=${this.escapePath(this.installDir)}
-datadir=${this.escapePath(path.join(this.installDir, "data"))}
-socket=${this.escapePath(this.config.socketPath)}
-skip-grant-tables
-innodb_buffer_pool_size=32M
-innodb_log_file_size=24M
-innodb_flush_log_at_trx_commit=2
+	  		[mysqld]
+	  		port=${this.config.port}
+	  		basedir=${this.installDir.replace(/\\/g, "/")}
+	  		datadir=${dataDir.replace(/\\/g, "/")}
+	  		socket=${this.config.socketPath.replace(/\\/g, "/")}
+	  		innodb_buffer_pool_size=32M
+	  		innodb_log_file_size=24M
+	  		innodb_flush_log_at_trx_commit=2
+	  		character-set-server=utf8mb4
+	  		collation-server=utf8mb4_unicode_ci
+	  		log-error=mysql_error.log
+	  		general_log=1
+	  		general_log_file=mysql_general.log
+	  		bind-address=127.0.0.1
+			enable-named-pipe
 `.trim();
 		console.log({ configContent });
 

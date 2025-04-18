@@ -9,3 +9,6 @@ server-electron/out
 client-electron/out
 yarn.lock
 mysql-8.0.36-winx64.zip
+electron-system/electron/assets/
+mysql-8.0.42-macos15-arm64.tar.gz
+mysql-8.0.42-macos15-x86_64.tar.gz
